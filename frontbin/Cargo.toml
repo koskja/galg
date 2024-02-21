@@ -1,0 +1,7 @@
+[package]
+name = "frontbin"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+galg = { path = "../galg" }

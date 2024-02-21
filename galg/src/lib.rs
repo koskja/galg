@@ -27,18 +27,12 @@ use subset::{GradeStorage, Subbin};
 
 use crate::subset::IndexSubset;
 
-type G1 = PlusAlgebra<0, 1, f32>;
+pub type G1 = PlusAlgebra<0, 1, f32>;
 //type C = PlusAlgebra<0, -1, f32>;
-type G2 = PlusAlgebra<1, 1, G1>;
-type G3 = PlusAlgebra<2, 1, G2>;
+pub type G2 = PlusAlgebra<1, 1, G1>;
+pub type G3 = PlusAlgebra<2, 1, G2>;
 
-fn main() {
-    let a = G3::nvec(&[1., 0., 0.]);
-    let b = G3::nvec(&[3., 4., 5.]);
-    println!("{:?}", a.axis_rotor(PI / 4.).sandwich(b));
-}
-
-trait CliffAlgebra<const DIM: usize>:
+pub trait CliffAlgebra<const DIM: usize>:
     Sized
     + GradeStorage<DIM, f32>
     + Add<Self, Output = Self>
