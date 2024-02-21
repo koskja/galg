@@ -1,6 +1,10 @@
 [workspace]
-resolver = "2"
 members = [
     "galg",
+    "galg/fuzz",
     "frontbin"
 ]
+resolver = "2"
+
+[profile.release]
+opt-level = 3

@@ -13,9 +13,10 @@
 #![feature(const_for)]
 #![feature(effects)]
 
-mod matrix;
-mod plusalg;
-mod subset;
+pub mod matrix;
+pub mod plusalg;
+pub mod subset;
+pub mod test;
 
 use std::{
     f32::consts::PI,
@@ -31,7 +32,25 @@ pub type G1 = PlusAlgebra<0, 1, f32>;
 //type C = PlusAlgebra<0, -1, f32>;
 pub type G2 = PlusAlgebra<1, 1, G1>;
 pub type G3 = PlusAlgebra<2, 1, G2>;
+pub type G4 = PlusAlgebra<3, 1, G3>;
+pub type G5 = PlusAlgebra<4, 1, G4>;
+pub type G6 = PlusAlgebra<5, 1, G5>;
+pub type G7 = PlusAlgebra<6, 1, G6>;
+pub type G8 = PlusAlgebra<7, 1, G7>;
 
+fn main() {
+    let a = G3::nvec(&[1., 0., 0.]);
+    let b = G3::nvec(&[3., 4., 5.]);
+    xd::<3, _>(a);
+    println!("{:?}", a.axis_rotor(PI / 4.).sandwich(b));
+}
+
+fn d(a: test::ArbitraryCliffordAlgebra<3, G3>) {}
+
+fn xd<const DIM: usize, A: CliffAlgebra<DIM>>(_: A) {}
+fn rep<const K: usize>(a: [usize; K], step: usize, n: usize) -> impl Iterator<Item = usize> {
+    (0..).flat_map(move |i| a.map(|x| x + step * i)).take(n)
+}
 pub trait CliffAlgebra<const DIM: usize>:
     Sized
     + GradeStorage<DIM, f32>
@@ -55,13 +74,13 @@ pub trait CliffAlgebra<const DIM: usize>:
         })
     }
     fn involution(self) -> Self {
-        self.grade_involution((0..=DIM).filter(|i| i % 2 == 1))
+        self.grade_involution(rep([1], 2, DIM + 1))
     }
     fn reversion(self) -> Self {
-        self.grade_involution((0..=DIM).filter(|i| (i * (i - 1) / 2) % 2 == 1))
+        self.grade_involution(rep([2, 3], 4, DIM + 1))
     }
     fn conjugation(self) -> Self {
-        self.grade_involution((0..=DIM).filter(|i| (i * (i + 1) / 2) % 2 == 1))
+        self.grade_involution(rep([1, 2], 4, DIM + 1))
     }
     /// https://math.stackexchange.com/questions/443555/calculating-the-inverse-of-a-multivector
     fn inverse(self) -> Option<Self> {
@@ -81,7 +100,7 @@ pub trait CliffAlgebra<const DIM: usize>:
             }
             _ => unimplemented!(),
         };
-        let (q, p) = (xd.clone(), (self * xd).project(&[]).unwrap_or(0.));
+        let (q, p) = (xd.clone(), (self * xd).project(&[]));
         (p.abs() > f32::EPSILON).then(|| q / p)
     }
     fn nscalar(a: f32) -> Self {
@@ -100,7 +119,7 @@ pub trait CliffAlgebra<const DIM: usize>:
         self * Self::upscalar()
     }
     fn ldual(self) -> Self {
-        Self::upscalar() * self
+        Self::upscalar() * Self::upscalar() * Self::upscalar() * self
     }
     fn nvec(v: &[f32]) -> Self {
         v.into_iter()
@@ -128,7 +147,7 @@ pub trait CliffAlgebra<const DIM: usize>:
         self.clone().scalar_product(self.reversion())
     }
     fn scalar_product(self, rhs: Self) -> f32 {
-        (self * rhs).project(&[]).unwrap_or(0.)
+        (self * rhs).project(&[])
     }
     fn axis_rotor(self, half_angle: f32) -> Self {
         let (s, c) = half_angle.sin_cos();

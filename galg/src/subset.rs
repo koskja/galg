@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, ops::Add};
 
-pub trait IndexSubset<const DIM: usize>: Sized + PartialEq {
+pub trait IndexSubset<const DIM: usize>: Sized + PartialEq + Clone {
     fn size(&self) -> usize;
     fn from_elems<'a>(list: &'a [usize]) -> Self;
     fn to_elems(&self, to: &mut [usize]);
@@ -13,8 +13,8 @@ pub trait IndexSubset<const DIM: usize>: Sized + PartialEq {
         Self::convert_from(&Subbin::convert_from(&self).disjunction(&Subbin::convert_from(other)))
     }
 
-    fn inversion(self) -> Self {
-        Self::convert_from(&Subbin::convert_from(&self).inversion())
+    fn complement(self) -> Self {
+        Self::convert_from(&Subbin::convert_from(&self).complement())
     }
 
     fn convert_from<T: IndexSubset<DIM>>(t: &T) -> Self {
@@ -39,40 +39,35 @@ pub trait IndexSubset<const DIM: usize>: Sized + PartialEq {
 }
 pub trait SubsetCollection<const DIM: usize, T>: Default {
     type Index: IndexSubset<DIM>;
-    fn assign(&mut self, elem: T, i: &impl IndexSubset<DIM>) -> Option<T>;
-    fn project(&self, i: &impl IndexSubset<DIM>) -> Option<T>;
-    fn include_other(&mut self, other: &Self) {
-        for (elem, i) in other.iter() {
-            self.assign(elem, &i);
-        }
-    }
+    fn assign(&mut self, elem: T, i: &impl IndexSubset<DIM>);
+    fn project(&self, i: &impl IndexSubset<DIM>) -> T;
+    fn include_other(&mut self, other: &Self);
     fn include_inplace(mut self, other: &Self) -> Self {
         self.include_other(other);
         self
     }
-    fn iter(&self) -> impl Iterator<Item = (T, Self::Index)>;
+    fn iter_slots() -> impl Iterator<Item = Self::Index> {
+        (0..=DIM).flat_map(|k| Self::Index::iter_grade(k))
+    }
+    fn iter(&self) -> impl Iterator<Item = (T, Self::Index)> {
+        Self::iter_slots().map(|i| (self.project(&i), i))
+    }
     fn iter2<S: IndexSubset<DIM>>(&self) -> impl Iterator<Item = (T, S)> {
-        self.iter().map(|(a, b)| {
-            let mut v = vec![0; b.size()];
-            b.to_elems(&mut v);
-            (a, S::from_elems(&v))
-        })
+        self.iter().map(|(a, b)| (a, S::convert_from(&b)))
     }
     fn new(elem: T, i: &impl IndexSubset<DIM>) -> Self {
         let mut this = Self::default();
         this.assign(elem, i);
         this
     }
-    fn mass_new<'a, S: 'a + IndexSubset<DIM>, I: IntoIterator<Item = (T, &'a S)>>(
-        elements: I,
-    ) -> Self {
+    fn mass_new<S: IndexSubset<DIM>, I: IntoIterator<Item = (T, S)>>(elements: I) -> Self {
         elements
             .into_iter()
-            .map(|(val, elem)| Self::new(val, elem))
+            .map(|(val, elem)| Self::new(val, &elem))
             .fold(Self::default(), |acc, val| acc.include_inplace(&val))
     }
-    fn select(&self, element: &impl IndexSubset<DIM>) -> Option<Self> {
-        self.project(element).map(|x| Self::new(x, element))
+    fn select(&self, element: &impl IndexSubset<DIM>) -> Self {
+        Self::new(self.project(element), element)
     }
     fn select_grade(&self, k: usize) -> Self {
         self.multi_select(Subbin::iter_grade(k))
@@ -80,19 +75,19 @@ pub trait SubsetCollection<const DIM: usize, T>: Default {
     fn multi_select<S: IndexSubset<DIM>, I: IntoIterator<Item = S>>(&self, grades: I) -> Self {
         grades
             .into_iter()
-            .flat_map(|i| self.select(&i))
+            .map(|i| self.select(&i))
             .fold(Self::default(), |a, b| a.include_inplace(&b))
     }
     fn multi_project<S: IndexSubset<DIM>, I: IntoIterator<Item = S>>(
         &self,
         grades: I,
     ) -> impl Iterator<Item = T> {
-        grades.into_iter().flat_map(|i| self.project(&i))
+        grades.into_iter().map(|i| self.project(&i))
     }
     fn grade_map<S: IndexSubset<DIM>>(&self, elem: &S, f: &impl Fn(T) -> T) -> Self {
         Self::mass_new(
             self.iter2::<S>()
-                .map(|(a, b)| (if &b == elem { f(a) } else { a }, elem)),
+                .map(|(a, b)| (if b == *elem { f(a) } else { a }, b)),
         )
     }
     fn multi_grade_map<S: IndexSubset<DIM>, I: IntoIterator<Item = S>>(
@@ -101,7 +96,7 @@ pub trait SubsetCollection<const DIM: usize, T>: Default {
         f: &impl Fn(T) -> T,
     ) {
         for i in elems {
-            self.grade_map(&i, f);
+            *self = self.grade_map(&i, f);
         }
     }
 }
@@ -171,7 +166,7 @@ impl<const DIM: usize> IndexSubset<DIM> for Sublist<DIM> {
         Self(all_elems, PhantomData)
     }
 
-    fn inversion(self) -> Self {
+    fn complement(self) -> Self {
         let mut inverted_elems = Vec::new();
         let mut j = 0;
         for i in 0..DIM {
@@ -207,7 +202,7 @@ impl<const DIM: usize, const K: usize> IndexSubset<DIM> for [usize; K] {
         unimplemented!()
     }
 
-    fn inversion(self) -> Self {
+    fn complement(self) -> Self {
         if IndexSubset::<DIM>::size(&self) * 2 == DIM {
             self.map(|x| DIM - x - 1)
         } else {
@@ -236,7 +231,7 @@ impl<'a, const DIM: usize> IndexSubset<DIM> for &'a [usize] {
         unimplemented!()
     }
 
-    fn inversion(self) -> Self {
+    fn complement(self) -> Self {
         unimplemented!()
     }
 }
@@ -311,7 +306,7 @@ impl<const DIM: usize> IndexSubset<DIM> for Subcom<DIM> {
         (0..count_combinations(DIM, k)).map(move |i| Self(k, i, PhantomData))
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Subbin<const DIM: usize>(pub usize, PhantomData<[(); DIM]>);
 impl<const DIM: usize> Subbin<DIM> {
     pub fn bits(data: usize) -> Self {
@@ -319,6 +314,14 @@ impl<const DIM: usize> Subbin<DIM> {
     }
     pub fn to_bits(&self) -> usize {
         self.0
+    }
+}
+impl<const DIM: usize> std::fmt::Debug for Subbin<DIM> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let bits = (0..DIM).rev().fold(String::new(), |acc, bit| {
+            acc + &format!("{}", self.0 >> bit & 1)
+        });
+        write!(f, "{{{bits}}}")
     }
 }
 impl<const DIM: usize> IndexSubset<DIM> for Subbin<DIM> {
@@ -350,7 +353,7 @@ impl<const DIM: usize> IndexSubset<DIM> for Subbin<DIM> {
         Self(self.0 | other.0, PhantomData)
     }
 
-    fn inversion(self) -> Self {
+    fn complement(self) -> Self {
         Self(!self.0, PhantomData)
     }
 }
