@@ -1,4 +1,4 @@
-use crate::subset::{IndexSubset, Subbin};
+use crate::subset::{IndexSet, Subbin};
 use crate::CliffAlgebra;
 use arbitrary::{self, Arbitrary};
 use std::fmt::Debug;
@@ -12,7 +12,7 @@ impl<'a, const DIM: usize, A: CliffAlgebra<DIM>> Arbitrary<'a>
         (0..=DIM)
             .flat_map(|k| A::Index::iter_grade(k))
             .try_fold(A::zero(), |acc, i| {
-                Ok(acc + A::new(u.arbitrary::<i16>()? as f32, &i))
+                Ok(acc + A::new(u.arbitrary::<i16>()? as f32, i))
             })
             .map(Self)
     }
@@ -26,7 +26,7 @@ impl<'a, const DIM: usize, A: CliffAlgebra<DIM>, B: CliffAlgebra<DIM>> Arbitrary
         Iterator::zip(A::iter_slots(), B::iter_slots())
             .try_fold((A::zero(), B::zero()), |(a, b), (i1, i2)| {
                 let val: i16 = u.arbitrary()?;
-                Ok((a + A::new(val as f32, &i1), b + B::new(val as f32, &i2)))
+                Ok((a + A::new(val as f32, i1), b + B::new(val as f32, i2)))
             })
             .map(|(a, b)| Self(a, b))
     }
@@ -55,14 +55,14 @@ pub fn check_equality<
     let eps = 0.1;
     let iter = || Iterator::zip(A::iter_slots(), B::iter_slots());
     let (asize, bsize) = iter().fold((0., 0.), |(a_, b_), (i, j)| {
-        (a_ + a.project(&i).abs(), b_ + b.project(&j).abs())
+        (a_ + a.project(i).abs(), b_ + b.project(j).abs())
     });
     assert!(is_close(asize, bsize, eps), "A({a:?}) is different from B({b:?}) in {s} of eps {eps}\n asize({asize}) != bsize({bsize})");
     for (i1, i2) in iter() {
-        let a_ = a.project(&i1);
-        let b_ = b.project(&i2);
-        let i1 = Subbin::convert_from(&i1);
-        let i2 = Subbin::convert_from(&i2);
+        let a_ = a.project(i1.clone());
+        let b_ = b.project(i2.clone());
+        let i1 = Subbin::convert_from(i1);
+        let i2 = Subbin::convert_from(i2);
         if a_.is_finite() && b_.is_finite() {
             assert!(
                 within_eps(a_, b_, f32::max(eps, eps * asize)),

@@ -4,7 +4,7 @@
 
 use std::any::Any;
 
-use galg::{matrix::MatrixG3, subset::IndexSubset, test::check_equality, CliffAlgebra, G3};
+use galg::{matrix::MatrixG3, subset::IndexSet, test::check_equality, CliffAlgebra, G3};
 use libfuzzer_sys::fuzz_target;
 fn test<const DIM: usize, A: std::fmt::Debug + CliffAlgebra<DIM> + Clone>(data: f32)
 where
@@ -12,7 +12,7 @@ where
 {
     for i in A::iter_slots() {
         let c = i.clone().complement();
-        let v = A::new(data, &i);
+        let v = A::new(data, i);
         let rdual = v.clone().rdual();
         let ldual = v.clone().ldual();
         let r_norm = v.clone() * rdual;
@@ -20,12 +20,12 @@ where
         check_equality(v.clone().rdual().ldual(), v.clone(), "duality inverse");
         check_equality(
             r_norm,
-            A::npscalar((v.clone() * v.clone()).project(&[])),
+            A::npscalar((v.clone() * v.clone()).project([])),
             "right norm",
         );
         check_equality(
             l_norm,
-            A::npscalar((v.clone() * v.clone()).project(&[])).involution(),
+            A::npscalar((v.clone() * v.clone()).project([])).involution(),
             "left norm",
         );
     }

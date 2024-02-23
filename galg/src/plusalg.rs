@@ -1,18 +1,18 @@
-use std::ops::{Add, Div, Mul, Neg, Sub};
-use derive_more::{AddAssign, SubAssign, MulAssign, DivAssign, RemAssign};
 use crate::{
-    subset::{GradeStorage, IndexSubset, Subbin, SubsetCollection},
+    subset::{GradeStorage, IndexSet, Subbin, SubsetCollection},
     CliffAlgebra,
 };
+use derive_more::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 impl SubsetCollection<0, f32> for f32 {
     type Index = Subbin<0>;
 
-    fn assign(&mut self, elem: f32, _: &impl IndexSubset<0>) {
+    fn assign(&mut self, elem: f32, _: impl IndexSet<0>) {
         *self = elem;
     }
 
-    fn project(&self, _: &impl IndexSubset<0>) -> f32 {
+    fn project(&self, _: impl IndexSet<0>) -> f32 {
         *self
     }
 
@@ -39,11 +39,11 @@ impl CliffAlgebra<0> for f32 {
 impl SubsetCollection<0, f64> for f64 {
     type Index = Subbin<0>;
 
-    fn assign(&mut self, elem: f64, _: &impl IndexSubset<0>) {
+    fn assign(&mut self, elem: f64, _: impl IndexSet<0>) {
         *self = elem;
     }
 
-    fn project(&self, _: &impl IndexSubset<0>) -> f64 {
+    fn project(&self, _: impl IndexSet<0>) -> f64 {
         *self
     }
 
@@ -71,7 +71,7 @@ where
             write!(
                 f,
                 "| {} |",
-                <Self as SubsetCollection::<{ DIM + 1 }, f32>>::project(&self, &i)
+                <Self as SubsetCollection::<{ DIM + 1 }, f32>>::project(&self, i)
             )?;
         }
         write!(f, "]")
@@ -128,25 +128,25 @@ impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> SubsetCollection<{ D
 {
     type Index = Subbin<{ DIM + 1 }>;
 
-    fn assign(&mut self, elem: f32, i: &impl IndexSubset<{ DIM + 1 }>) {
+    fn assign(&mut self, elem: f32, i: impl IndexSet<{ DIM + 1 }>) {
         let bin = Subbin::convert_from(i).to_bits();
         let lower_bits = DIM;
         let mask = usize::MAX << lower_bits; // lowest significant one overlaps precisely the added vector
         if bin & mask != 0 {
-            self.1.assign(elem, &Subbin::bits(bin & !mask))
+            self.1.assign(elem, Subbin::bits(bin & !mask))
         } else {
-            self.0.assign(elem, &Subbin::bits(bin & !mask))
+            self.0.assign(elem, Subbin::bits(bin & !mask))
         }
     }
 
-    fn project(&self, i: &impl IndexSubset<{ DIM + 1 }>) -> f32 {
+    fn project(&self, i: impl IndexSet<{ DIM + 1 }>) -> f32 {
         let bin = Subbin::convert_from(i).to_bits();
         let lower_bits = DIM;
         let mask = usize::MAX << lower_bits; // lowest significant one overlaps precisely the added vector
         if bin & mask != 0 {
-            self.1.project(&Subbin::bits(bin & !mask))
+            self.1.project(Subbin::bits(bin & !mask))
         } else {
-            self.0.project(&Subbin::bits(bin & !mask))
+            self.0.project(Subbin::bits(bin & !mask))
         }
     }
 

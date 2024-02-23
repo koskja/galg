@@ -12,7 +12,7 @@ fn main() {
         (40., Subbin::bits(2)),
     ]);
     let a = g.conjugation() * g.involution() * g.reversion();
-    let proj = (g * a).project(&[]);
+    let proj = (g * a).project([]);
     println!(
         "{:?} * {:?} => {:?} => {a:?}",
         g.conjugation(),

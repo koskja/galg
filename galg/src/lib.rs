@@ -26,7 +26,7 @@ use std::{
 use plusalg::PlusAlgebra;
 use subset::{GradeStorage, Subbin};
 
-use crate::subset::IndexSubset;
+use crate::subset::IndexSet;
 
 pub type G1 = PlusAlgebra<0, 1, f32>;
 //type C = PlusAlgebra<0, -1, f32>;
@@ -61,16 +61,13 @@ pub trait CliffAlgebra<const DIM: usize>:
     + Neg<Output = Self>
     + Div<f32, Output = Self>
 {
-    fn spec_involution<S: IndexSubset<DIM>, I: IntoIterator<Item = S>>(
-        mut self,
-        grades: I,
-    ) -> Self {
+    fn spec_involution<S: IndexSet<DIM>, I: IntoIterator<Item = S>>(mut self, grades: I) -> Self {
         self.multi_grade_map(grades, &Neg::neg);
         self
     }
     fn grade_involution<I: IntoIterator<Item = usize>>(self, grades: I) -> Self {
         grades.into_iter().fold(self, |this, grade| {
-            this.spec_involution(Subbin::<DIM>::iter_grade(grade))
+            this.spec_involution(Self::Index::iter_grade(grade))
         })
     }
     fn involution(self) -> Self {
@@ -100,14 +97,14 @@ pub trait CliffAlgebra<const DIM: usize>:
             }
             _ => unimplemented!(),
         };
-        let (q, p) = (xd.clone(), (self * xd).project(&[]));
+        let (q, p) = (xd.clone(), (self * xd).project([]));
         (p.abs() > f32::EPSILON).then(|| q / p)
     }
     fn nscalar(a: f32) -> Self {
-        Self::new(a, &[])
+        Self::new(a, [])
     }
     fn npscalar(a: f32) -> Self {
-        Self::new(a, &Subbin::bits(!(usize::MAX << DIM)))
+        Self::new(a, Subbin::bits(!(usize::MAX << DIM)))
     }
     fn uscalar() -> Self {
         Self::nscalar(1.)
@@ -125,7 +122,7 @@ pub trait CliffAlgebra<const DIM: usize>:
         v.into_iter()
             .zip(0..DIM)
             .fold(Self::zero(), |acc, (&val, index)| {
-                acc + Self::new(val, &[index])
+                acc + Self::new(val, [index])
             })
     }
     fn zero() -> Self {
@@ -147,7 +144,7 @@ pub trait CliffAlgebra<const DIM: usize>:
         self.clone().scalar_product(self.reversion())
     }
     fn scalar_product(self, rhs: Self) -> f32 {
-        (self * rhs).project(&[])
+        (self * rhs).project([])
     }
     fn axis_rotor(self, half_angle: f32) -> Self {
         let (s, c) = half_angle.sin_cos();

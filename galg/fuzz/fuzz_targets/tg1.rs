@@ -4,7 +4,7 @@
 
 use galg::{
     matrix::MatrixG3,
-    subset::{IndexSubset, Subbin, SubsetCollection},
+    subset::{IndexSet, Subbin, SubsetCollection},
     test::is_close,
     CliffAlgebra, G3,
 };
@@ -24,9 +24,9 @@ fn test<
     let a = A::mass_new(val.into_iter().zip(slots.clone().into_iter()));
     let b = B::mass_new(val.into_iter().zip(slots.clone().into_iter()));
     for (val, i) in val.into_iter().zip(slots.iter()) {
-        let a_reprojected = a.project(i);
-        let b_reprojected = a.project(i);
-        let i = Subbin::convert_from(i).0;
+        let a_reprojected = a.project(i.clone());
+        let b_reprojected = a.project(i.clone());
+        let i = Subbin::convert_from(i.clone()).0;
         assert!(
             is_close(val, a_reprojected, eps),
             "A: original {val} is different from reprojected {a_reprojected} @ {i:?}: {a:?} {slots:?}"

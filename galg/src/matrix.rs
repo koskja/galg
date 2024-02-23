@@ -1,30 +1,13 @@
-use std::{
-    f32::consts::PI,
-    ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign},
+use std::ops::{
+    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
 };
 
 use nalgebra::{Complex, Matrix2, Vector3};
 
 use crate::{
-    subset::{count_combinations, get_tuple_k, IndexSubset, Subbin, Sublist, SubsetCollection},
+    subset::{IndexSet, Subbin, SubsetCollection},
     CliffAlgebra,
 };
-fn test() {
-    const N: usize = 30; // Change n as needed
-    let k = 2; // Change k as needed
-    let mut x = [0; 2];
-    for (a, i) in Sublist::<N>::iter_grade(k).zip(0..count_combinations(N, k)) {
-        a.to_elems(&mut x);
-        println!("{:?}: {i} - {}", a, get_tuple_k(&x));
-    }
-
-    let x = MatrixG3::from(Vector3::new(1., 0., 0.));
-    let y = MatrixG3::from(Vector3::new(0., 1., 0.));
-    let z = MatrixG3::from(Vector3::new(0., 0., 1.));
-    let w = x * y + z;
-    println!("{w}");
-    println!("{}", MatrixG3::rotor(x.pt_vec(), PI * 0.5).sandwich(w))
-}
 pub type Pauli2<F> = Matrix2<Complex<F>>;
 /// This is an element of the full Clifford algebra of real 3-space. `Cl(3, 0)` can be embedded into GL<sub>2</sub>(ℂ) as the Pauli matrices.
 /// Scalars are multiples of the identity matrix, vectors can be seen in the `From<Vector3>` implementation below.
@@ -94,7 +77,7 @@ impl core::fmt::Debug for MatrixG3 {
             write!(
                 f,
                 "| {} |",
-                <Self as SubsetCollection::<3, f32>>::project(&self, &i)
+                <Self as SubsetCollection::<3, f32>>::project(&self, i)
             )?;
         }
         write!(f, "]")
@@ -103,7 +86,7 @@ impl core::fmt::Debug for MatrixG3 {
 impl crate::subset::SubsetCollection<3, f32> for MatrixG3 {
     type Index = Subbin<3>;
 
-    fn new(elem: f32, i: &impl IndexSubset<3>) -> Self {
+    fn new(elem: f32, i: impl IndexSet<3>) -> Self {
         let a = Subbin::convert_from(i).to_bits();
         match a {
             0 => Self::ONE * elem,
@@ -118,11 +101,11 @@ impl crate::subset::SubsetCollection<3, f32> for MatrixG3 {
         }
     }
 
-    fn assign(&mut self, elem: f32, i: &impl IndexSubset<3>) {
-        *self = *self - self.select(i) + Self::new(elem, i)
+    fn assign(&mut self, elem: f32, i: impl IndexSet<3>) {
+        *self = *self - self.select(i.clone()) + Self::new(elem, i)
     }
 
-    fn project(&self, i: &impl IndexSubset<3>) -> f32 {
+    fn project(&self, i: impl IndexSet<3>) -> f32 {
         let a = Subbin::convert_from(i).to_bits();
         match a {
             0 => self.pt_scalar(),
@@ -137,10 +120,10 @@ impl crate::subset::SubsetCollection<3, f32> for MatrixG3 {
         }
     }
 
-    fn mass_new<S: IndexSubset<3>, I: IntoIterator<Item = (f32, S)>>(elements: I) -> Self {
+    fn mass_new<S: IndexSet<3>, I: IntoIterator<Item = (f32, S)>>(elements: I) -> Self {
         elements
             .into_iter()
-            .map(|(val, elem)| Self::new(val, &elem))
+            .map(|(val, elem)| Self::new(val, elem))
             .fold(Self::default(), Add::add)
     }
 
