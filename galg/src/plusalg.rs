@@ -1,5 +1,5 @@
 use std::ops::{Add, Div, Mul, Neg, Sub};
-
+use derive_more::{AddAssign, SubAssign, MulAssign, DivAssign, RemAssign};
 use crate::{
     subset::{GradeStorage, IndexSubset, Subbin, SubsetCollection},
     CliffAlgebra,
@@ -56,9 +56,8 @@ impl SubsetCollection<0, f64> for f64 {
     }
 }
 impl GradeStorage<0, f64> for f64 {}
-
 /// Creates a new Clifford algebra by extending an algebra `A` with a new vector orthogonal to all its elements, e<sub>n</sub>. e<sub>n</sub><sup>2</sup> = `EN2`. `n = DIM + 1`
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign)]
 pub struct PlusAlgebra<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>>(A, A);
 impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> core::fmt::Debug
     for PlusAlgebra<DIM, EN2, A>
