@@ -1,11 +1,11 @@
 use crate::{
-    subset::{GradeStorage, IndexSet, Subbin, SubsetCollection},
+    subset::{GradedSpace, IndexSet, Subbin},
     CliffAlgebra,
 };
 use derive_more::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-impl SubsetCollection<0, f32> for f32 {
+impl GradedSpace<0, f32> for f32 {
     type Index = Subbin<0>;
 
     fn assign(&mut self, elem: f32, _: impl IndexSet<0>) {
@@ -19,12 +19,7 @@ impl SubsetCollection<0, f32> for f32 {
     fn iter(&self) -> impl Iterator<Item = (f32, Self::Index)> {
         Some((*self, Subbin::bits(0))).into_iter()
     }
-
-    fn include_other(&mut self, other: &Self) {
-        *self += *other;
-    }
 }
-impl GradeStorage<0, f32> for f32 {}
 impl CliffAlgebra<0> for f32 {
     fn involution(self) -> Self {
         self
@@ -36,7 +31,7 @@ impl CliffAlgebra<0> for f32 {
         self
     }
 }
-impl SubsetCollection<0, f64> for f64 {
+impl GradedSpace<0, f64> for f64 {
     type Index = Subbin<0>;
 
     fn assign(&mut self, elem: f64, _: impl IndexSet<0>) {
@@ -50,12 +45,7 @@ impl SubsetCollection<0, f64> for f64 {
     fn iter(&self) -> impl Iterator<Item = (f64, Self::Index)> {
         Some((*self, Subbin::bits(0))).into_iter()
     }
-
-    fn include_other(&mut self, other: &Self) {
-        *self += *other;
-    }
 }
-impl GradeStorage<0, f64> for f64 {}
 /// Creates a new Clifford algebra by extending an algebra `A` with a new vector orthogonal to all its elements, e<sub>n</sub>. e<sub>n</sub><sup>2</sup> = `EN2`. `n = DIM + 1`
 #[derive(Default, Clone, Copy, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign)]
 pub struct PlusAlgebra<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>>(A, A);
@@ -71,7 +61,7 @@ where
             write!(
                 f,
                 "| {} |",
-                <Self as SubsetCollection::<{ DIM + 1 }, f32>>::project(&self, i)
+                <Self as GradedSpace::<{ DIM + 1 }, f32>>::project(&self, i)
             )?;
         }
         write!(f, "]")
@@ -123,7 +113,7 @@ impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> Mul<Self> for PlusAl
         )
     }
 }
-impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> SubsetCollection<{ DIM + 1 }, f32>
+impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> GradedSpace<{ DIM + 1 }, f32>
     for PlusAlgebra<DIM, EN2, A>
 {
     type Index = Subbin<{ DIM + 1 }>;
@@ -149,16 +139,6 @@ impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> SubsetCollection<{ D
             self.0.project(Subbin::bits(bin & !mask))
         }
     }
-
-    fn include_other(&mut self, other: &Self) {
-        *self = self.clone() + other.clone();
-    }
-}
-impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> GradeStorage<{ DIM + 1 }, f32>
-    for PlusAlgebra<DIM, EN2, A>
-where
-    [(); DIM + 1]:,
-{
 }
 impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> CliffAlgebra<{ DIM + 1 }>
     for PlusAlgebra<DIM, EN2, A>

@@ -1,9 +1,9 @@
 #![allow(dead_code)]
+#![allow(incomplete_features)]
 #![feature(generic_const_exprs)]
 #![feature(anonymous_lifetime_in_impl_trait)]
 #![feature(associated_const_equality)]
 #![feature(closure_lifetime_binder)]
-#![feature(return_position_impl_trait_in_trait)]
 #![feature(coroutines)]
 #![feature(coroutine_trait)]
 #![feature(const_mut_refs)]
@@ -24,7 +24,7 @@ use std::{
 };
 
 use plusalg::PlusAlgebra;
-use subset::{GradeStorage, Subbin};
+use subset::{GradedSpace, Subbin};
 
 use crate::subset::IndexSet;
 
@@ -45,15 +45,13 @@ fn main() {
     println!("{:?}", a.axis_rotor(PI / 4.).sandwich(b));
 }
 
-fn d(a: test::ArbitraryCliffordAlgebra<3, G3>) {}
-
 fn xd<const DIM: usize, A: CliffAlgebra<DIM>>(_: A) {}
 fn rep<const K: usize>(a: [usize; K], step: usize, n: usize) -> impl Iterator<Item = usize> {
     (0..).flat_map(move |i| a.map(|x| x + step * i)).take(n)
 }
 pub trait CliffAlgebra<const DIM: usize>:
     Sized
-    + GradeStorage<DIM, f32>
+    + GradedSpace<DIM, f32>
     + Add<Self, Output = Self>
     + Mul<Self, Output = Self>
     + Mul<f32, Output = Self>
@@ -61,13 +59,10 @@ pub trait CliffAlgebra<const DIM: usize>:
     + Neg<Output = Self>
     + Div<f32, Output = Self>
 {
-    fn spec_involution<S: IndexSet<DIM>, I: IntoIterator<Item = S>>(mut self, grades: I) -> Self {
-        self.multi_grade_map(grades, &Neg::neg);
-        self
-    }
     fn grade_involution<I: IntoIterator<Item = usize>>(self, grades: I) -> Self {
         grades.into_iter().fold(self, |this, grade| {
-            this.spec_involution(Self::Index::iter_grade(grade))
+            this.multi_grade_map(Self::Index::iter_grade(grade), &Neg::neg);
+            this
         })
     }
     fn involution(self) -> Self {
@@ -125,13 +120,10 @@ pub trait CliffAlgebra<const DIM: usize>:
                 acc + Self::new(val, [index])
             })
     }
-    fn zero() -> Self {
-        Self::nscalar(0.)
-    }
     fn wedge(self, rhs: Self) -> Self {
         (0..DIM)
             .flat_map(|i| (0..DIM).map(move |j| (i, j)))
-            .map(|(i, j)| (self.select_grade(i) * rhs.select_grade(j)).select_grade(i + j))
+            .map(|(i, j)| (self.grade_select(i) * rhs.grade_select(j)).grade_select(i + j))
             .fold(Self::default(), Add::add)
     }
     fn lcont(self, rhs: Self) -> Self {

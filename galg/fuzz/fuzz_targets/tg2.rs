@@ -1,12 +1,11 @@
 #![allow(unused_mut)]
+#![allow(incomplete_features)]
 #![no_main]
 #![feature(generic_const_exprs)]
 
-use std::any::Any;
-
 use galg::{
     matrix::MatrixG3,
-    test::{check_equality, is_close, Acap},
+    test::{check_equality, Acap},
     CliffAlgebra, G3,
 };
 use libfuzzer_sys::fuzz_target;

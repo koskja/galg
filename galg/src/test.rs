@@ -23,7 +23,7 @@ impl<'a, const DIM: usize, A: CliffAlgebra<DIM>, B: CliffAlgebra<DIM>> Arbitrary
     for Acap<DIM, A, B>
 {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
-        Iterator::zip(A::iter_slots(), B::iter_slots())
+        Iterator::zip(A::iter_basis(), B::iter_basis())
             .try_fold((A::zero(), B::zero()), |(a, b), (i1, i2)| {
                 let val: i16 = u.arbitrary()?;
                 Ok((a + A::new(val as f32, i1), b + B::new(val as f32, i2)))
@@ -53,7 +53,7 @@ pub fn check_equality<
     s: &str,
 ) {
     let eps = 0.1;
-    let iter = || Iterator::zip(A::iter_slots(), B::iter_slots());
+    let iter = || Iterator::zip(A::iter_basis(), B::iter_basis());
     let (asize, bsize) = iter().fold((0., 0.), |(a_, b_), (i, j)| {
         (a_ + a.project(i).abs(), b_ + b.project(j).abs())
     });

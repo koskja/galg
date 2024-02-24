@@ -1,4 +1,7 @@
-use std::{marker::PhantomData, ops::Add};
+use std::{
+    marker::PhantomData,
+    ops::{Add, Mul},
+};
 
 pub mod default {
     use super::{IndexSet, Subbin};
@@ -116,72 +119,66 @@ pub trait IndexSet<const DIM: usize>: Sized + PartialEq + Clone {
     fn convert_from(t: impl IndexSet<DIM>) -> Self;
     fn iter_grade(k: usize) -> impl Iterator<Item = Self>;
 }
-pub trait SubsetCollection<const DIM: usize, T>: Default {
+pub trait GradedSpace<const DIM: usize, F>:
+    Default + Clone + Add<Self, Output = Self> + Mul<F, Output = Self>
+{
     type Index: IndexSet<DIM>;
-    fn assign(&mut self, elem: T, i: impl IndexSet<DIM>);
-    fn project(&self, i: impl IndexSet<DIM>) -> T;
-    fn include_other(&mut self, other: &Self);
-    fn include_inplace(mut self, other: &Self) -> Self {
-        self.include_other(other);
-        self
+    fn zero() -> Self {
+        Self::default()
     }
-    fn iter_slots() -> impl Iterator<Item = Self::Index> {
-        (0..=DIM).flat_map(|k| Self::Index::iter_grade(k))
+    fn assign(&mut self, elem: F, i: impl IndexSet<DIM>);
+    fn project(&self, i: impl IndexSet<DIM>) -> F;
+    fn iter_basis() -> impl Iterator<Item = Self::Index> {
+        (0..(DIM + 1)).flat_map(Self::Index::iter_grade)
     }
-    fn iter(&self) -> impl Iterator<Item = (T, Self::Index)> {
-        Self::iter_slots().map(|i| (self.project(i.clone()), i))
+    fn iter(&self) -> impl Iterator<Item = (F, Self::Index)> {
+        Self::iter_basis().map(|i| (self.project(i.clone()), i))
     }
-    fn iter2<S: IndexSet<DIM>>(&self) -> impl Iterator<Item = (T, S)> {
+    fn iter2<S: IndexSet<DIM>>(&self) -> impl Iterator<Item = (F, S)> {
         self.iter().map(|(a, b)| (a, S::convert_from(b)))
     }
-    fn new(elem: T, i: impl IndexSet<DIM>) -> Self {
-        let mut this = Self::default();
+    fn new(elem: F, i: impl IndexSet<DIM>) -> Self {
+        let mut this = Self::zero();
         this.assign(elem, i);
         this
     }
-    fn mass_new<S: IndexSet<DIM>, I: IntoIterator<Item = (T, S)>>(elements: I) -> Self {
+    fn mass_new<S: IndexSet<DIM>, I: IntoIterator<Item = (F, S)>>(elements: I) -> Self {
         elements
             .into_iter()
             .map(|(val, elem)| Self::new(val, elem))
-            .fold(Self::default(), |acc, val| acc.include_inplace(&val))
+            .fold(Self::zero(), Add::add)
     }
     fn select(&self, element: impl IndexSet<DIM>) -> Self {
         Self::new(self.project(element.clone()), element)
     }
-    fn select_grade(&self, k: usize) -> Self {
+    fn grade_select(&self, k: usize) -> Self {
         self.multi_select(Subbin::iter_grade(k))
     }
     fn multi_select<S: IndexSet<DIM>, I: IntoIterator<Item = S>>(&self, grades: I) -> Self {
         grades
             .into_iter()
             .map(|i| self.select(i))
-            .fold(Self::default(), |a, b| a.include_inplace(&b))
+            .fold(Self::zero(), Add::add)
     }
     fn multi_project<S: IndexSet<DIM>, I: IntoIterator<Item = S>>(
         &self,
         grades: I,
-    ) -> impl Iterator<Item = T> {
+    ) -> impl Iterator<Item = F> {
         grades.into_iter().map(|i| self.project(i))
     }
-    fn grade_map<S: IndexSet<DIM>>(&self, elem: &S, f: &impl Fn(T) -> T) -> Self {
-        Self::mass_new(
-            self.iter2::<S>()
-                .map(|(a, b)| (if b == *elem { f(a) } else { a }, b)),
-        )
+    fn grade_map(mut self, elem: impl IndexSet<DIM>, f: &impl Fn(F) -> F) -> Self {
+        self.assign(f(self.project(elem.clone())), elem);
+        self
     }
     fn multi_grade_map<S: IndexSet<DIM>, I: IntoIterator<Item = S>>(
-        &mut self,
+        &self,
         elems: I,
-        f: &impl Fn(T) -> T,
-    ) {
-        for i in elems {
-            *self = self.grade_map(&i, f);
-        }
+        f: &impl Fn(F) -> F,
+    ) -> Self {
+        elems
+            .into_iter()
+            .fold(self.clone(), |acc, elem| acc.grade_map(elem, f))
     }
-}
-pub trait GradeStorage<const DIM: usize, T: 'static + Copy>:
-    Sized + Default + Clone + SubsetCollection<DIM, T>
-{
 }
 
 impl<const DIM: usize, const K: usize> IndexSet<DIM> for [usize; K] {

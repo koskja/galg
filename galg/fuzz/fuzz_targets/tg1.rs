@@ -1,10 +1,11 @@
 #![allow(unused_mut)]
+#![allow(incomplete_features)]
 #![no_main]
 #![feature(generic_const_exprs)]
 
 use galg::{
     matrix::MatrixG3,
-    subset::{IndexSet, Subbin, SubsetCollection},
+    subset::{IndexSet, Subbin},
     test::is_close,
     CliffAlgebra, G3,
 };
@@ -20,7 +21,7 @@ fn test<
 ) where
     A::Index: std::fmt::Debug,
 {
-    let slots: Vec<_> = A::iter_slots().collect();
+    let slots: Vec<_> = A::iter_basis().collect();
     let a = A::mass_new(val.into_iter().zip(slots.clone().into_iter()));
     let b = B::mass_new(val.into_iter().zip(slots.clone().into_iter()));
     for (val, i) in val.into_iter().zip(slots.iter()) {

@@ -5,7 +5,7 @@ use std::ops::{
 use nalgebra::{Complex, Matrix2, Vector3};
 
 use crate::{
-    subset::{IndexSet, Subbin, SubsetCollection},
+    subset::{GradedSpace, IndexSet, Subbin},
     CliffAlgebra,
 };
 pub type Pauli2<F> = Matrix2<Complex<F>>;
@@ -77,13 +77,13 @@ impl core::fmt::Debug for MatrixG3 {
             write!(
                 f,
                 "| {} |",
-                <Self as SubsetCollection::<3, f32>>::project(&self, i)
+                <Self as GradedSpace::<3, f32>>::project(&self, i)
             )?;
         }
         write!(f, "]")
     }
 }
-impl crate::subset::SubsetCollection<3, f32> for MatrixG3 {
+impl crate::subset::GradedSpace<3, f32> for MatrixG3 {
     type Index = Subbin<3>;
 
     fn new(elem: f32, i: impl IndexSet<3>) -> Self {
@@ -126,12 +126,7 @@ impl crate::subset::SubsetCollection<3, f32> for MatrixG3 {
             .map(|(val, elem)| Self::new(val, elem))
             .fold(Self::default(), Add::add)
     }
-
-    fn include_other(&mut self, other: &Self) {
-        *self += *other;
-    }
 }
-impl crate::subset::GradeStorage<3, f32> for MatrixG3 {}
 impl CliffAlgebra<3> for MatrixG3 {
     /*fn reversion(mut self) -> Self {
         self.0.swap((0, 1), (1, 0));

@@ -1,17 +1,15 @@
 #![allow(unused_mut)]
+#![allow(incomplete_features)]
 #![no_main]
 #![feature(generic_const_exprs)]
 
-use std::any::Any;
-
-use galg::{matrix::MatrixG3, subset::IndexSet, test::check_equality, CliffAlgebra, G3};
+use galg::{matrix::MatrixG3, test::check_equality, CliffAlgebra, G3};
 use libfuzzer_sys::fuzz_target;
 fn test<const DIM: usize, A: std::fmt::Debug + CliffAlgebra<DIM> + Clone>(data: f32)
 where
     A::Index: Clone,
 {
-    for i in A::iter_slots() {
-        let c = i.clone().complement();
+    for i in A::iter_basis() {
         let v = A::new(data, i);
         let rdual = v.clone().rdual();
         let ldual = v.clone().ldual();
