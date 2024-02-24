@@ -11,8 +11,8 @@ use galg::{
 use libfuzzer_sys::fuzz_target;
 fn test<
     const DIM: usize,
-    A: std::fmt::Debug + CliffAlgebra<DIM> + Clone,
-    B: std::fmt::Debug + CliffAlgebra<DIM> + Clone,
+    A: std::fmt::Debug + CliffAlgebra<DIM, f32> + Clone,
+    B: std::fmt::Debug + CliffAlgebra<DIM, f32> + Clone,
 >(
     data: Vec<[Acap<DIM, A, B>; 2]>,
 ) {

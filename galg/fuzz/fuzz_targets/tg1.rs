@@ -13,8 +13,8 @@ use libfuzzer_sys::fuzz_target;
 
 fn test<
     const DIM: usize,
-    A: std::fmt::Debug + CliffAlgebra<DIM>,
-    B: std::fmt::Debug + CliffAlgebra<DIM>,
+    A: std::fmt::Debug + CliffAlgebra<DIM, f32>,
+    B: std::fmt::Debug + CliffAlgebra<DIM, f32>,
 >(
     val: [f32; 1 << DIM],
     eps: f32,

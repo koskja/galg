@@ -5,7 +5,7 @@
 
 use galg::{matrix::MatrixG3, test::check_equality, CliffAlgebra, G3};
 use libfuzzer_sys::fuzz_target;
-fn test<const DIM: usize, A: std::fmt::Debug + CliffAlgebra<DIM> + Clone>(data: f32)
+fn test<const DIM: usize, A: std::fmt::Debug + CliffAlgebra<DIM, f32> + Clone>(data: f32)
 where
     A::Index: Clone,
 {

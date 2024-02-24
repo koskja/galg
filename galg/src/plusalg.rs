@@ -2,8 +2,12 @@ use crate::{
     subset::{GradedSpace, IndexSet, Subbin},
     CliffAlgebra,
 };
-use derive_more::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use derive_more::{DivAssign, MulAssign, RemAssign};
+use nalgebra::RealField;
+use std::{
+    marker::PhantomData,
+    ops::{Add, Div, Mul, Neg, Sub},
+};
 
 impl GradedSpace<0, f32> for f32 {
     type Index = Subbin<0>;
@@ -20,7 +24,7 @@ impl GradedSpace<0, f32> for f32 {
         Some((*self, Subbin::bits(0))).into_iter()
     }
 }
-impl CliffAlgebra<0> for f32 {
+impl CliffAlgebra<0, f32> for f32 {
     fn involution(self) -> Self {
         self
     }
@@ -47,10 +51,22 @@ impl GradedSpace<0, f64> for f64 {
     }
 }
 /// Creates a new Clifford algebra by extending an algebra `A` with a new vector orthogonal to all its elements, e<sub>n</sub>. e<sub>n</sub><sup>2</sup> = `EN2`. `n = DIM + 1`
-#[derive(Default, Clone, Copy, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign)]
-pub struct PlusAlgebra<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>>(A, A);
-impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> core::fmt::Debug
-    for PlusAlgebra<DIM, EN2, A>
+#[derive(Clone, Copy, MulAssign, DivAssign, RemAssign)]
+pub struct PlusAlgebra<
+    const DIM: usize,
+    const EN2: i8,
+    F: Copy + RealField,
+    A: CliffAlgebra<DIM, F>,
+>(A, A, PhantomData<F>);
+impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Default
+    for PlusAlgebra<DIM, EN2, F, A>
+{
+    fn default() -> Self {
+        Self(A::zero(), A::zero(), PhantomData)
+    }
+}
+impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> core::fmt::Debug
+    for PlusAlgebra<DIM, EN2, F, A>
 where
     [(); DIM + 1]:,
 {
@@ -61,64 +77,77 @@ where
             write!(
                 f,
                 "| {} |",
-                <Self as GradedSpace::<{ DIM + 1 }, f32>>::project(&self, i)
+                <Self as GradedSpace::<{ DIM + 1 }, F>>::project(&self, i)
             )?;
         }
         write!(f, "]")
     }
 }
-impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> Add<Self> for PlusAlgebra<DIM, EN2, A> {
+impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Add<Self>
+    for PlusAlgebra<DIM, EN2, F, A>
+{
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0, self.1 + rhs.1)
+        Self(self.0 + rhs.0, self.1 + rhs.1, PhantomData)
     }
 }
-impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> Sub<Self> for PlusAlgebra<DIM, EN2, A> {
+impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Sub<Self>
+    for PlusAlgebra<DIM, EN2, F, A>
+{
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0, self.1 - rhs.1)
+        Self(self.0 - rhs.0, self.1 - rhs.1, PhantomData)
     }
 }
-impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> Neg for PlusAlgebra<DIM, EN2, A> {
+impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Neg
+    for PlusAlgebra<DIM, EN2, F, A>
+{
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        Self(-self.0, -self.1)
+        Self(-self.0, -self.1, PhantomData)
     }
 }
-impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> Mul<f32> for PlusAlgebra<DIM, EN2, A> {
+impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Mul<F>
+    for PlusAlgebra<DIM, EN2, F, A>
+{
     type Output = Self;
 
-    fn mul(self, rhs: f32) -> Self::Output {
-        Self(self.0 * rhs, self.1 * rhs)
+    fn mul(self, rhs: F) -> Self::Output {
+        Self(self.0 * rhs, self.1 * rhs, PhantomData)
     }
 }
-impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> Div<f32> for PlusAlgebra<DIM, EN2, A> {
+impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Div<F>
+    for PlusAlgebra<DIM, EN2, F, A>
+{
     type Output = Self;
 
-    fn div(self, rhs: f32) -> Self::Output {
-        Self(self.0 / rhs, self.1 / rhs)
+    fn div(self, rhs: F) -> Self::Output {
+        Self(self.0 / rhs, self.1 / rhs, PhantomData)
     }
 }
-impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> Mul<Self> for PlusAlgebra<DIM, EN2, A> {
+impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Mul<Self>
+    for PlusAlgebra<DIM, EN2, F, A>
+{
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
         let (_self, _rhs) = (self.clone(), rhs.clone());
         Self(
-            _self.0 * _rhs.0 + _self.1 * _rhs.1.involution() * EN2 as f32,
+            _self.0 * _rhs.0 + _self.1 * _rhs.1.involution() * F::from_f32(EN2 as f32).unwrap(),
             self.0 * rhs.1 + self.1 * rhs.0.involution(),
+            PhantomData,
         )
     }
 }
-impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> GradedSpace<{ DIM + 1 }, f32>
-    for PlusAlgebra<DIM, EN2, A>
+impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>>
+    GradedSpace<{ DIM + 1 }, F> for PlusAlgebra<DIM, EN2, F, A>
 {
     type Index = Subbin<{ DIM + 1 }>;
 
-    fn assign(&mut self, elem: f32, i: impl IndexSet<{ DIM + 1 }>) {
+    fn assign(&mut self, elem: F, i: impl IndexSet<{ DIM + 1 }>) {
         let bin = Subbin::convert_from(i).to_bits();
         let lower_bits = DIM;
         let mask = usize::MAX << lower_bits; // lowest significant one overlaps precisely the added vector
@@ -129,7 +158,7 @@ impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> GradedSpace<{ DIM + 
         }
     }
 
-    fn project(&self, i: impl IndexSet<{ DIM + 1 }>) -> f32 {
+    fn project(&self, i: impl IndexSet<{ DIM + 1 }>) -> F {
         let bin = Subbin::convert_from(i).to_bits();
         let lower_bits = DIM;
         let mask = usize::MAX << lower_bits; // lowest significant one overlaps precisely the added vector
@@ -140,8 +169,8 @@ impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> GradedSpace<{ DIM + 
         }
     }
 }
-impl<const DIM: usize, const EN2: i8, A: CliffAlgebra<DIM>> CliffAlgebra<{ DIM + 1 }>
-    for PlusAlgebra<DIM, EN2, A>
+impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>>
+    CliffAlgebra<{ DIM + 1 }, F> for PlusAlgebra<DIM, EN2, F, A>
 where
     [(); DIM + 1]:,
 {
@@ -161,13 +190,13 @@ where
         Self(self.0.conjugation(), -self.1.reversion())
     } */
 
-    fn nscalar(a: f32) -> Self {
-        Self(A::nscalar(a), A::nscalar(0.))
+    fn nscalar(a: F) -> Self {
+        Self(A::nscalar(a), A::nscalar(F::zero()), PhantomData)
     }
 
-    fn nvec(v: &[f32]) -> Self {
+    fn nvec(v: &[F]) -> Self {
         let (l, r) = v.split_at(DIM);
         println!("{DIM} {v:?} {l:?} {r:?}");
-        Self(A::nvec(l), A::nscalar(r[0]))
+        Self(A::nvec(l), A::nscalar(r[0]), PhantomData)
     }
 }

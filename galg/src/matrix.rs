@@ -127,7 +127,7 @@ impl crate::subset::GradedSpace<3, f32> for MatrixG3 {
             .fold(Self::default(), Add::add)
     }
 }
-impl CliffAlgebra<3> for MatrixG3 {
+impl CliffAlgebra<3, f32> for MatrixG3 {
     /*fn reversion(mut self) -> Self {
         self.0.swap((0, 1), (1, 0));
         Self(self.0.conjugate())

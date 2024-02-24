@@ -4,8 +4,8 @@ use arbitrary::{self, Arbitrary};
 use std::fmt::Debug;
 
 #[derive(Debug)]
-pub struct ArbitraryCliffordAlgebra<const DIM: usize, A: CliffAlgebra<DIM>>(pub A);
-impl<'a, const DIM: usize, A: CliffAlgebra<DIM>> Arbitrary<'a>
+pub struct ArbitraryCliffordAlgebra<const DIM: usize, A: CliffAlgebra<DIM, f32>>(pub A);
+impl<'a, const DIM: usize, A: CliffAlgebra<DIM, f32>> Arbitrary<'a>
     for ArbitraryCliffordAlgebra<DIM, A>
 {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
@@ -18,8 +18,11 @@ impl<'a, const DIM: usize, A: CliffAlgebra<DIM>> Arbitrary<'a>
     }
 }
 #[derive(Debug)]
-pub struct Acap<const DIM: usize, A: CliffAlgebra<DIM>, B: CliffAlgebra<DIM>>(pub A, pub B);
-impl<'a, const DIM: usize, A: CliffAlgebra<DIM>, B: CliffAlgebra<DIM>> Arbitrary<'a>
+pub struct Acap<const DIM: usize, A: CliffAlgebra<DIM, f32>, B: CliffAlgebra<DIM, f32>>(
+    pub A,
+    pub B,
+);
+impl<'a, const DIM: usize, A: CliffAlgebra<DIM, f32>, B: CliffAlgebra<DIM, f32>> Arbitrary<'a>
     for Acap<DIM, A, B>
 {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
@@ -45,8 +48,8 @@ pub fn within_eps(a: f32, b: f32, eps: f32) -> bool {
 }
 pub fn check_equality<
     const DIM: usize,
-    A: Debug + CliffAlgebra<DIM>,
-    B: Debug + CliffAlgebra<DIM>,
+    A: Debug + CliffAlgebra<DIM, f32>,
+    B: Debug + CliffAlgebra<DIM, f32>,
 >(
     a: A,
     b: B,
