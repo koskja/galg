@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![allow(incomplete_features)]
+#![feature(iter_intersperse)]
 #![feature(generic_const_exprs)]
 #![feature(anonymous_lifetime_in_impl_trait)]
 #![feature(associated_const_equality)]
@@ -19,8 +20,7 @@ pub mod subset;
 pub mod test;
 
 use std::{
-    f32::consts::PI,
-    ops::{Add, Div, Mul, Neg, Sub},
+    f32::consts::PI, fmt::Debug, ops::{Add, Div, Mul, Neg, Sub}
 };
 
 use nalgebra::RealField;
@@ -29,8 +29,13 @@ use subset::{GradedSpace, Subbin};
 
 use crate::subset::IndexSet;
 
+pub type C = PlusAlgebra<0, -1, f32, f32>;
+pub type M1 = PlusAlgebra<1, 1, f32, C>;
+pub type M2 = PlusAlgebra<2, 1, f32, M1>;
+pub type M3 = PlusAlgebra<3, 1, f32, M2>;
+pub type M4 = PlusAlgebra<4, 1, f32, M3>;
+pub type G0 = f32;
 pub type G1 = PlusAlgebra<0, 1, f32, f32>;
-//type C = PlusAlgebra<0, -1, f32>;
 pub type G2 = PlusAlgebra<1, 1, f32, G1>;
 pub type G3 = PlusAlgebra<2, 1, f32, G2>;
 pub type G4 = PlusAlgebra<3, 1, f32, G3>;
@@ -45,11 +50,11 @@ fn main() {
     println!("{:?}", a.axis_rotor(PI / 4.).sandwich(b));
 }
 
-fn rep<const K: usize>(a: [usize; K], step: usize, n: usize) -> impl Iterator<Item = usize> {
-    (0..).flat_map(move |i| a.map(|x| x + step * i)).take(n)
+pub fn rep<const K: usize>(a: [usize; K], step: usize, n: usize) -> impl Iterator<Item = usize> {
+    (0..).flat_map(move |i| a.map(|x| x + step * i)).take_while(move |&i| i <= n)
 }
 pub trait CliffAlgebra<const DIM: usize, F: Copy + RealField>:
-    Sized
+    Sized + Debug
     + GradedSpace<DIM, F>
     + Add<Self, Output = Self>
     + Mul<Self, Output = Self>
@@ -60,28 +65,27 @@ pub trait CliffAlgebra<const DIM: usize, F: Copy + RealField>:
 {
     fn grade_involution<I: IntoIterator<Item = usize>>(self, grades: I) -> Self {
         grades.into_iter().fold(self, |this, grade| {
-            this.multi_grade_map(Self::Index::iter_grade(grade), &Neg::neg);
-            this
+            this.multi_grade_map(Self::Index::iter_grade(grade), &Neg::neg)
         })
     }
     fn involution(self) -> Self {
-        self.grade_involution(rep([1], 2, DIM + 1))
+        self.grade_involution(rep([1], 2, DIM))
     }
     fn reversion(self) -> Self {
-        self.grade_involution(rep([2, 3], 4, DIM + 1))
+        self.grade_involution(rep([2, 3], 4, DIM))
     }
     fn conjugation(self) -> Self {
-        self.grade_involution(rep([1, 2], 4, DIM + 1))
+        self.grade_involution(rep([1, 2], 4, DIM))
     }
     /// https://math.stackexchange.com/questions/443555/calculating-the-inverse-of-a-multivector
     fn inverse(self) -> Option<Self> {
         let xd = match DIM {
-            0 => Self::nscalar(self.clone().square_norm().into()),
+            0 => Self::nscalar(self.clone().square_norm()),
             1 | 2 => self.clone().conjugation(),
             3 => self.clone().conjugation() * self.clone().involution() * self.clone().reversion(),
-            4 => {
-                self.clone().conjugation()
-                    * (self.clone() * self.clone().conjugation()).grade_involution([3, 4])
+            4 => { 
+                let a = self.clone() * self.clone().conjugation();
+                self.clone().conjugation() * a.clone().grade_involution([3, 4])
             }
             5 => {
                 let a = self.clone().conjugation()
@@ -113,7 +117,7 @@ pub trait CliffAlgebra<const DIM: usize, F: Copy + RealField>:
         Self::upscalar() * Self::upscalar() * Self::upscalar() * self
     }
     fn nvec(v: &[F]) -> Self {
-        v.into_iter()
+        v.iter()
             .zip(0..DIM)
             .fold(Self::zero(), |acc, (&val, index)| {
                 acc + Self::new(val, [index])
@@ -132,7 +136,7 @@ pub trait CliffAlgebra<const DIM: usize, F: Copy + RealField>:
         (self.wedge(lhs.rdual())).ldual()
     }
     fn square_norm(self) -> F {
-        self.clone().scalar_product(self.reversion())
+        self.clone().scalar_product(self)
     }
     fn scalar_product(self, rhs: Self) -> F {
         (self * rhs).project([])
@@ -141,11 +145,28 @@ pub trait CliffAlgebra<const DIM: usize, F: Copy + RealField>:
         self.rdual().plane_rotor(half_angle)
     }
     fn plane_rotor(self, half_angle: f32) -> Self {
-        let (s, c) = half_angle.sin_cos();
         let bivec = self.multi_select(Subbin::iter_grade(2));
-        Self::nscalar(F::from_f32(s).unwrap()) + bivec * F::from_f32(c).unwrap()
+        let sn = bivec.clone().square_norm();
+        let pos_norm = sn.abs().try_sqrt().unwrap();
+        let (s, c) = if sn.is_positive() {
+            (half_angle.sinh(), half_angle.cosh())
+        } else {
+            half_angle.sin_cos()
+        };
+        Self::nscalar(F::from_f32(c).unwrap()) + bivec / pos_norm * F::from_f32(s).unwrap()
     }
     fn sandwich(self, mhs: Self) -> Self {
-        self.clone() * mhs * self.inverse().unwrap()
+        (self.clone() * mhs) * self.inverse().unwrap()
+    }
+    fn print(&self) -> String {
+        let mut out = vec![];
+        for i in Self::iter_basis() {
+            let val = self.project(i.clone());
+            if !val.is_zero() {
+                let basis_indices = i.iter_elems().fold(String::new(), |acc, nindex| format!("{acc}{}", nindex));
+                out.push(format!("{val}e{basis_indices}"));
+            }
+        }
+        out.into_iter().intersperse_with(|| " + ".to_string()).collect()
     }
 }

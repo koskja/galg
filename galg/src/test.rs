@@ -1,6 +1,6 @@
 use crate::subset::{IndexSet, Subbin};
 use crate::CliffAlgebra;
-use arbitrary::{self, Arbitrary};
+use arbitrary::Arbitrary;
 use std::fmt::Debug;
 
 #[derive(Debug)]
@@ -10,7 +10,7 @@ impl<'a, const DIM: usize, A: CliffAlgebra<DIM, f32>> Arbitrary<'a>
 {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
         (0..=DIM)
-            .flat_map(|k| A::Index::iter_grade(k))
+            .flat_map(A::Index::iter_grade)
             .try_fold(A::zero(), |acc, i| {
                 Ok(acc + A::new(u.arbitrary::<i16>()? as f32, i))
             })

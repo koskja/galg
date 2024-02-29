@@ -5,7 +5,7 @@ use std::ops::{
 use nalgebra::{Complex, Matrix2, Vector3};
 
 use crate::{
-    subset::{GradedSpace, IndexSet, Subbin},
+    subset::{IndexSet, Subbin},
     CliffAlgebra,
 };
 pub type Pauli2<F> = Matrix2<Complex<F>>;
@@ -71,16 +71,7 @@ impl MatrixG3 {
 }
 impl core::fmt::Debug for MatrixG3 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[")?;
-        for i in (0..=3).flat_map(|k| Subbin::iter_grade(k)) {
-            //println!("{i:?}");
-            write!(
-                f,
-                "| {} |",
-                <Self as GradedSpace::<3, f32>>::project(&self, i)
-            )?;
-        }
-        write!(f, "]")
+        write!(f, "{}", self.print())
     }
 }
 impl crate::subset::GradedSpace<3, f32> for MatrixG3 {
@@ -149,13 +140,7 @@ impl CliffAlgebra<3, f32> for MatrixG3 {
 }
 impl core::fmt::Display for MatrixG3 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{{:?} / ", self.pt_scalar())?;
-        let v: [_; 3] = self.pt_vec().into();
-        let b: [_; 3] = self.pt_bivec().into();
-        write!(f, "{:?} / ", v)?;
-        write!(f, "{:?} / ", b)?;
-        write!(f, "{:?}}}", self.pt_pscalar())?;
-        Ok(())
+        write!(f, "{}", self.print())
     }
 }
 impl Index<(usize, usize)> for MatrixG3 {

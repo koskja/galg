@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 galg = { path = "../galg" }
+nalgebra = "0.32.4"
+svg = "0.16.0"

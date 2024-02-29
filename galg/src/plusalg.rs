@@ -50,6 +50,17 @@ impl GradedSpace<0, f64> for f64 {
         Some((*self, Subbin::bits(0))).into_iter()
     }
 }
+impl CliffAlgebra<0, f64> for f64 {
+    fn involution(self) -> Self {
+        self
+    }
+    fn reversion(self) -> Self {
+        self
+    }
+    fn conjugation(self) -> Self {
+        self
+    }
+}
 /// Creates a new Clifford algebra by extending an algebra `A` with a new vector orthogonal to all its elements, e<sub>n</sub>. e<sub>n</sub><sup>2</sup> = `EN2`. `n = DIM + 1`
 #[derive(Clone, Copy, MulAssign, DivAssign, RemAssign)]
 pub struct PlusAlgebra<
@@ -71,16 +82,7 @@ where
     [(); DIM + 1]:,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[")?;
-        for i in (0..=(DIM + 1)).flat_map(|k| Subbin::iter_grade(k)) {
-            //println!("{i:?}");
-            write!(
-                f,
-                "| {} |",
-                <Self as GradedSpace::<{ DIM + 1 }, F>>::project(&self, i)
-            )?;
-        }
-        write!(f, "]")
+        write!(f, "{}", self.print())
     }
 }
 impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Add<Self>
@@ -135,9 +137,15 @@ impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, 
 
     fn mul(self, rhs: Self) -> Self::Output {
         let (_self, _rhs) = (self.clone(), rhs.clone());
+        let a = _self.0 * _rhs.0 + _self.1 * _rhs.1.involution() * F::from_f32(EN2 as f32).unwrap();
+        let b = self.0.clone() * rhs.1.clone() + self.1.clone() * rhs.0.clone().involution();
+        if !a.iter().all(|(val, _)| val.is_zero()) || !b.iter().all(|(val, _)| val.is_zero()) {
+            //println!("({}+({})e{n})*({}+({})e{n})=({}+({})e{n})", self.0.print(), self.1.print(), rhs.0.print(), rhs.1.print(), a.print(), b.print());
+        }
+
         Self(
-            _self.0 * _rhs.0 + _self.1 * _rhs.1.involution() * F::from_f32(EN2 as f32).unwrap(),
-            self.0 * rhs.1 + self.1 * rhs.0.involution(),
+            a,
+            b,
             PhantomData,
         )
     }
@@ -176,19 +184,19 @@ where
 {
     /*fn scalar_product(self, rhs: Self) -> f32 {
         self.0.scalar_product(rhs.0) + self.1.scalar_product(rhs.1.involution()) * EN2 as f32
-    }
+    } */
 
     fn involution(self) -> Self { // cmon bruh
-        Self(self.0.involution(), -self.1.involution())
+        Self(self.0.involution(), -self.1.involution(), PhantomData)
     }
 
     fn reversion(self) -> Self {
-        Self(self.0.reversion(), self.1.conjugation())
+        Self(self.0.reversion(), self.1.conjugation(), PhantomData)
     }
 
     fn conjugation(self) -> Self {
-        Self(self.0.conjugation(), -self.1.reversion())
-    } */
+        Self(self.0.conjugation(), -self.1.reversion(), PhantomData)
+    } 
 
     fn nscalar(a: F) -> Self {
         Self(A::nscalar(a), A::nscalar(F::zero()), PhantomData)
