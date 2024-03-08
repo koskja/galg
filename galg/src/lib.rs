@@ -13,19 +13,26 @@
 #![feature(const_option)]
 #![feature(const_for)]
 #![feature(effects)]
+#![feature(strict_provenance)]
+#![feature(slice_ptr_len)]
+#![feature(slice_ptr_get)]
+#![feature(vec_push_within_capacity)]
 
 pub mod matrix;
 pub mod plusalg;
 pub mod subset;
 pub mod test;
+pub mod variable;
 
 use std::{
     f32::consts::PI, fmt::Debug, ops::{Add, Div, Mul, Neg, Sub}
 };
 
 use nalgebra::RealField;
+use num_traits::Zero;
 use plusalg::PlusAlgebra;
 use subset::{GradedSpace, Subbin};
+use variable::Expr;
 
 use crate::subset::IndexSet;
 
@@ -44,10 +51,25 @@ pub type G6 = PlusAlgebra<5, 1, f32, G5>;
 pub type G7 = PlusAlgebra<6, 1, f32, G6>;
 pub type G8 = PlusAlgebra<7, 1, f32, G7>;
 
+pub type CVar = PlusAlgebra<0, -1, Expr, Expr>;
+pub type M1Var = PlusAlgebra<1, 1, Expr, CVar>;
+pub type M2Var = PlusAlgebra<2, 1, Expr, M1Var>;
+pub type M3Var = PlusAlgebra<3, 1, Expr, M2Var>;
+pub type M4Var = PlusAlgebra<4, 1, Expr, M3Var>;
+pub type G0Var = Expr;
+pub type G1Var = PlusAlgebra<0, 1, Expr, Expr>;
+pub type G2Var = PlusAlgebra<1, 1, Expr, G1Var>;
+pub type G3Var = PlusAlgebra<2, 1, Expr, G2Var>;
+pub type G4Var = PlusAlgebra<3, 1, Expr, G3Var>;
+pub type G5Var = PlusAlgebra<4, 1, Expr, G4Var>;
+pub type G6Var = PlusAlgebra<5, 1, Expr, G5Var>;
+pub type G7Var = PlusAlgebra<6, 1, Expr, G6Var>;
+pub type G8Var = PlusAlgebra<7, 1, Expr, G7Var>;
+
 fn main() {
     let a = G3::nvec(&[1., 0., 0.]);
     let b = G3::nvec(&[3., 4., 5.]);
-    println!("{:?}", a.axis_rotor(PI / 4.).sandwich(b));
+    println!("{:?}", a.rdual().plane_rotor(PI / 4.).sandwich(b));
 }
 
 pub fn rep<const K: usize>(a: [usize; K], step: usize, n: usize) -> impl Iterator<Item = usize> {
@@ -96,7 +118,8 @@ pub trait CliffAlgebra<const DIM: usize, F: Copy + RealField>:
             _ => unimplemented!(),
         };
         let (q, p) = (xd.clone(), (self * xd).project([]));
-        (!p.is_zero()).then(|| q / p)
+        //(!p.is_zero()).then(|| q / p)
+        Some(q / p)
     }
     fn nscalar(a: F) -> Self {
         Self::new(a, [])
@@ -127,7 +150,7 @@ pub trait CliffAlgebra<const DIM: usize, F: Copy + RealField>:
         (0..DIM)
             .flat_map(|i| (0..DIM).map(move |j| (i, j)))
             .map(|(i, j)| (self.grade_select(i) * rhs.grade_select(j)).grade_select(i + j))
-            .fold(Self::default(), Add::add)
+            .fold(Self::zero(), Add::add)
     }
     fn lcont(self, rhs: Self) -> Self {
         (self.ldual().wedge(rhs)).rdual()
@@ -141,19 +164,15 @@ pub trait CliffAlgebra<const DIM: usize, F: Copy + RealField>:
     fn scalar_product(self, rhs: Self) -> F {
         (self * rhs).project([])
     }
-    fn axis_rotor(self, half_angle: f32) -> Self {
-        self.rdual().plane_rotor(half_angle)
-    }
-    fn plane_rotor(self, half_angle: f32) -> Self {
+    fn plane_rotor(self, half_angle: F) -> Self {
         let bivec = self.multi_select(Subbin::iter_grade(2));
         let sn = bivec.clone().square_norm();
-        let pos_norm = sn.abs().try_sqrt().unwrap();
         let (s, c) = if sn.is_positive() {
             (half_angle.sinh(), half_angle.cosh())
         } else {
             half_angle.sin_cos()
         };
-        Self::nscalar(F::from_f32(c).unwrap()) + bivec / pos_norm * F::from_f32(s).unwrap()
+        Self::nscalar(c) + bivec * s
     }
     fn sandwich(self, mhs: Self) -> Self {
         (self.clone() * mhs) * self.inverse().unwrap()
@@ -170,3 +189,20 @@ pub trait CliffAlgebra<const DIM: usize, F: Copy + RealField>:
         out.into_iter().intersperse_with(|| " + ".to_string()).collect()
     }
 }
+
+impl<T: RealField + Copy> GradedSpace<0, T> for T {
+    type Index = Subbin<0>;
+
+    fn zero() -> Self {
+        Zero::zero()
+    }
+
+    fn assign(&mut self, elem: T, _: impl IndexSet<0>) {
+        *self = elem;
+    }
+
+    fn project(&self, _: impl IndexSet<0>) -> T {
+        *self
+    }
+}
+impl<T: RealField + Copy> CliffAlgebra<0, T> for T {}

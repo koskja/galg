@@ -3,9 +3,10 @@ use std::ops::{
 };
 
 use nalgebra::{Complex, Matrix2, Vector3};
+use num_traits::Zero;
 
 use crate::{
-    subset::{IndexSet, Subbin},
+    subset::{GradedSpace, IndexSet, Subbin},
     CliffAlgebra,
 };
 pub type Pauli2<F> = Matrix2<Complex<F>>;
@@ -76,7 +77,7 @@ impl core::fmt::Debug for MatrixG3 {
 }
 impl crate::subset::GradedSpace<3, f32> for MatrixG3 {
     type Index = Subbin<3>;
-
+    
     fn new(elem: f32, i: impl IndexSet<3>) -> Self {
         let a = Subbin::convert_from(i).to_bits();
         match a {
@@ -117,6 +118,10 @@ impl crate::subset::GradedSpace<3, f32> for MatrixG3 {
             .map(|(val, elem)| Self::new(val, elem))
             .fold(Self::default(), Add::add)
     }
+    
+    fn zero() -> Self {
+        Self(Zero::zero())
+    }
 }
 impl CliffAlgebra<3, f32> for MatrixG3 {
     /*fn reversion(mut self) -> Self {
@@ -136,6 +141,11 @@ impl CliffAlgebra<3, f32> for MatrixG3 {
 
     fn inverse(self) -> Option<Self> {
         self.0.try_inverse().map(Self)
+    }
+    fn plane_rotor(self, half_angle: f32) -> Self {
+        let (s, c) = half_angle.sin_cos();
+        let bivec = self.multi_select(Subbin::iter_grade(2));
+        Self::nscalar(s) + bivec * c
     }
 }
 impl core::fmt::Display for MatrixG3 {

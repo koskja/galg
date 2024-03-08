@@ -5,62 +5,8 @@ use crate::{
 use derive_more::{DivAssign, MulAssign, RemAssign};
 use nalgebra::RealField;
 use std::{
-    marker::PhantomData,
-    ops::{Add, Div, Mul, Neg, Sub},
+    fmt::Display, marker::PhantomData, ops::{Add, Div, Mul, Neg, Sub}
 };
-
-impl GradedSpace<0, f32> for f32 {
-    type Index = Subbin<0>;
-
-    fn assign(&mut self, elem: f32, _: impl IndexSet<0>) {
-        *self = elem;
-    }
-
-    fn project(&self, _: impl IndexSet<0>) -> f32 {
-        *self
-    }
-
-    fn iter(&self) -> impl Iterator<Item = (f32, Self::Index)> {
-        Some((*self, Subbin::bits(0))).into_iter()
-    }
-}
-impl CliffAlgebra<0, f32> for f32 {
-    fn involution(self) -> Self {
-        self
-    }
-    fn reversion(self) -> Self {
-        self
-    }
-    fn conjugation(self) -> Self {
-        self
-    }
-}
-impl GradedSpace<0, f64> for f64 {
-    type Index = Subbin<0>;
-
-    fn assign(&mut self, elem: f64, _: impl IndexSet<0>) {
-        *self = elem;
-    }
-
-    fn project(&self, _: impl IndexSet<0>) -> f64 {
-        *self
-    }
-
-    fn iter(&self) -> impl Iterator<Item = (f64, Self::Index)> {
-        Some((*self, Subbin::bits(0))).into_iter()
-    }
-}
-impl CliffAlgebra<0, f64> for f64 {
-    fn involution(self) -> Self {
-        self
-    }
-    fn reversion(self) -> Self {
-        self
-    }
-    fn conjugation(self) -> Self {
-        self
-    }
-}
 /// Creates a new Clifford algebra by extending an algebra `A` with a new vector orthogonal to all its elements, e<sub>n</sub>. e<sub>n</sub><sup>2</sup> = `EN2`. `n = DIM + 1`
 #[derive(Clone, Copy, MulAssign, DivAssign, RemAssign)]
 pub struct PlusAlgebra<
@@ -76,7 +22,7 @@ impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, 
         Self(A::zero(), A::zero(), PhantomData)
     }
 }
-impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> core::fmt::Debug
+impl<const DIM: usize, const EN2: i8, F: Display + Copy + RealField, A: CliffAlgebra<DIM, F>> core::fmt::Debug
     for PlusAlgebra<DIM, EN2, F, A>
 where
     [(); DIM + 1]:,
@@ -176,6 +122,10 @@ impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, 
             self.0.project(Subbin::bits(bin & !mask))
         }
     }
+    
+    fn zero() -> Self {
+        Self(A::zero(), A::zero(), PhantomData)
+    }
 }
 impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>>
     CliffAlgebra<{ DIM + 1 }, F> for PlusAlgebra<DIM, EN2, F, A>
@@ -204,7 +154,6 @@ where
 
     fn nvec(v: &[F]) -> Self {
         let (l, r) = v.split_at(DIM);
-        println!("{DIM} {v:?} {l:?} {r:?}");
         Self(A::nvec(l), A::nscalar(r[0]), PhantomData)
     }
 }

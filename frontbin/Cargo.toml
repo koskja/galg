@@ -7,3 +7,9 @@ edition = "2021"
 galg = { path = "../galg" }
 nalgebra = "0.32.4"
 svg = "0.16.0"
+num-traits = "0.2.18"
+
+
+[dependencies.pyo3]
+version = "0.20"
+features = ["auto-initialize"]

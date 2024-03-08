@@ -120,12 +120,10 @@ pub trait IndexSet<const DIM: usize>: Sized + PartialEq + Clone {
     fn iter_grade(k: usize) -> impl Iterator<Item = Self>;
 }
 pub trait GradedSpace<const DIM: usize, F>:
-    Default + Clone + Add<Self, Output = Self> + Mul<F, Output = Self>
+    Clone + Add<Self, Output = Self> + Mul<F, Output = Self>
 {
     type Index: IndexSet<DIM>;
-    fn zero() -> Self {
-        Self::default()
-    }
+    fn zero() -> Self;
     fn assign(&mut self, elem: F, i: impl IndexSet<DIM>);
     fn project(&self, i: impl IndexSet<DIM>) -> F;
     fn iter_basis() -> impl Iterator<Item = Self::Index> {

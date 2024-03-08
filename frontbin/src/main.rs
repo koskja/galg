@@ -6,21 +6,22 @@
 mod render;
 
 use galg::{
-    subset::{GradedSpace, Subbin},
-    CliffAlgebra, M1
+    subset::{GradedSpace, Subbin}, variable::{Expr, ExprVal}, CliffAlgebra, G3Var, M3Var, M1
 };
-use nalgebra::{SMatrix, SVector, Vector2};
+use nalgebra::{RealField, SMatrix, SVector, Vector2};
+use num_traits::One;
+use pyo3::Python;
 use std::f32::consts::PI;
 use svg::{
     node::element::Circle,
     Document,
 };
 
-fn create_matrix<const DIM: usize, A: CliffAlgebra<DIM, f32>>(versor: A) -> SMatrix<f32, DIM, DIM> {
+fn create_matrix<const DIM: usize, F: RealField + Copy, A: CliffAlgebra<DIM, F>>(versor: A) -> SMatrix<F, DIM, DIM> {
     let mut columns = vec![];
     for i in 0..DIM {
         let mut ovec = SVector::zeros();
-        let vec = A::new(1., [i]);
+        let vec = A::new(One::one(), [i]);
         let res = versor.clone().sandwich(vec);
         for j in 0..DIM {
             ovec[j] = res.project([j]);
@@ -31,6 +32,16 @@ fn create_matrix<const DIM: usize, A: CliffAlgebra<DIM, f32>>(versor: A) -> SMat
 }
 
 fn main() {
+    let a = Expr::nvar("a");
+    let b = Expr::nvar("b");
+    let s = G3Var::new(Expr::nconst(1.), Subbin::bits(0b011));
+    let r = s.plane_rotor(a);
+    println!("{}", s.square_norm());
+    println!("exp({s:?})={:?}", r);
+    println!("{}", create_matrix(r))
+}
+
+fn space_main() {
     let bivec = M1::new(1., Subbin::bits(0b0011));
     println!("Accelerating through {}", bivec.square_norm());
     let n = 40;
