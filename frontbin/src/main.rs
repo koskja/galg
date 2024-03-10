@@ -6,7 +6,7 @@
 mod render;
 
 use galg::{
-    subset::{GradedSpace, Subbin}, variable::{Expr, ExprVal}, CliffAlgebra, G3Var, M3Var, M1
+    subset::{GradedSpace, Subbin}, variable::{Expr, ExprVal}, CliffAlgebra, G3Var, G4Var, G5Var, G8Var, M3Var, M1
 };
 use nalgebra::{RealField, SMatrix, SVector, Vector2};
 use num_traits::One;
@@ -34,11 +34,17 @@ fn create_matrix<const DIM: usize, F: RealField + Copy, A: CliffAlgebra<DIM, F>>
 fn main() {
     let a = Expr::nvar("a");
     let b = Expr::nvar("b");
-    let s = G3Var::new(Expr::nconst(1.), Subbin::bits(0b011));
-    let r = s.plane_rotor(a);
-    println!("{}", s.square_norm());
-    println!("exp({s:?})={:?}", r);
-    println!("{}", create_matrix(r))
+    let s1 = G4Var::new(Expr::nconst(1.), Subbin::bits(0b0011));
+    let s2 = G4Var::new(Expr::nconst(1.), Subbin::bits(0b1100));
+    let s3 = G4Var::new(Expr::nconst(1.), Subbin::bits(0b0110));
+    let s4 = G4Var::new(Expr::nconst(1.), Subbin::bits(0b1001));
+    let r1 = s1.plane_rotor(a);
+    let r2 = s2.plane_rotor(b);
+    let r3 = s3.plane_rotor(a);
+    let r4 = s4.plane_rotor(b);
+    let r = r1 * r2 * r3 * r4;
+    println!("exp({:?})={:?}", s1 + s2, r);
+    //println!("{}", create_matrix(r))
 }
 
 fn space_main() {

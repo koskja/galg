@@ -1,4 +1,4 @@
-use std::{cell::RefCell, cmp, ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign}};
+use std::{cell::RefCell, cmp, ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign}};
 
 use approx::{AbsDiffEq, RelativeEq};
 use lazy_static::lazy_static;
@@ -60,12 +60,37 @@ impl Index<usize> for ExprStorage {
         &self.blocks[i][index] 
     }
 }
+impl IndexMut<usize> for ExprStorage {
+    fn index_mut (&mut self, mut index: usize) -> &mut Self::Output {
+        assert!(index < self.len);
+        let mut i = 0;
+        while index >= self.blocks[i].len() {
+            index -= self.blocks[i].len();
+            i += 1;
+        }
+        &mut self.blocks[i][index] 
+    }
+}
 
-pub fn nexpr(e: ExprVal) -> Expr {
+pub fn rnexpr(e: ExprVal) -> Expr {
     get_storage().borrow_mut().push_expr(e)
+}
+pub fn nexpr(e: ExprVal) -> Expr {
+    let a = get_storage().borrow_mut().push_expr(e);
+    optimise(a).unwrap();
+    a
 }
 pub fn expr(i: Expr) -> ExprVal {
     get_storage().borrow()[i.0]
+}
+pub fn optimise(i: Expr) -> PyResult<()> {
+    Python::with_gil(|py| {
+        let new = Expr::from_string(py, &i.to_string(py)?)?;
+        let mut storage = get_storage().borrow_mut();
+        storage[i.0] = storage[new.0];
+        Ok(())
+    }
+    )
 }
 #[derive(Debug, Clone, Copy)]
 pub enum RealFunction {
@@ -85,29 +110,40 @@ pub enum ExprVal {
 impl Expr {
     pub fn nvar(name: &str) -> Self {
         let name: String = name.to_owned();
-        nexpr(ExprVal::Variable(Box::leak(name.into_boxed_str())))
+        rnexpr(ExprVal::Variable(Box::leak(name.into_boxed_str())))
     }
     pub fn nconst(value: f32) -> Self {
-        nexpr(ExprVal::Constant(value))
+        rnexpr(ExprVal::Constant(value))
     }
     pub fn from_sympy_expr(py: Python, sympy_expr: &PyAny) -> PyResult<Self> {
-        let bin_args = |f: &dyn Fn(Self, Self) -> Self| -> PyResult<Self> {
+        let bin_args = |f: &dyn Fn(Self, Self) -> ExprVal| -> PyResult<Self> {
             let args: Vec<PyObject> = sympy_expr.getattr("args")?.extract()?;
             let e1 = Self::from_sympy_expr(py, args[0].as_ref(py))?;
             let e2 = Self::from_sympy_expr(py, args[1].as_ref(py))?;
-            Ok(f(e1, e2))
+            Ok(rnexpr(f(e1, e2)))
+        };
+        let unary_arg = |f: &dyn Fn(Self) -> ExprVal| -> PyResult<Self> {
+            let args: Vec<PyObject> = sympy_expr.getattr("args")?.extract()?;
+            let e1 = Self::from_sympy_expr(py, args[0].as_ref(py))?;
+            Ok(rnexpr(f(e1)))
         };
         let expr = match sympy_expr.get_type().getattr("__name__")?.extract::<&str>()? {
-            "Add" => bin_args(&Add::add)?,
-            "Sub" => bin_args(&Sub::sub)?,
-            "Div" => bin_args(&Div::div)?,
-            "Mul" => bin_args(&Mul::mul)?,
-            "Pow" => bin_args(&|e1, e2| e1.powf(e2))?,
+            "Add" => bin_args(&|a, b| ExprVal::Add(a, b))?,
+            "Sub" => bin_args(&|a, b| ExprVal::Sub(a, b))?,
+            "Div" => bin_args(&|a, b| ExprVal::Div(a, b))?,
+            "Mul" => bin_args(&|a, b| ExprVal::Mul(a, b))?,
+            "Pow" => bin_args(&|a, b| ExprVal::Power(a, b))?,
+            "sin" => unary_arg(&|a| ExprVal::Unary(RealFunction::Sin, a))?,
+            "cos" => unary_arg(&|a| ExprVal::Unary(RealFunction::Cos, a))?,
+            "tan" => unary_arg(&|a| ExprVal::Unary(RealFunction::Tan, a))?,
+            "csc" => unary_arg(&|a| ExprVal::Unary(RealFunction::Csc, a))?,
+            "sec" => unary_arg(&|a| ExprVal::Unary(RealFunction::Sec, a))?,
+            "cot" => unary_arg(&|a| ExprVal::Unary(RealFunction::Cot, a))?,
             "Symbol" => {
                 let name: String = sympy_expr.getattr("name")?.extract()?;
                 Self::nvar(&name)
             },
-            "Number" | "Integer" | "NegativeOne" => {
+            "Number" | "Integer" | "NegativeOne" | "Zero" | "One" | "Rational" | "Float" | "Half" => {
                 let value: f32 = sympy_expr.extract()?;
                 Self::nconst(value)
             },
@@ -115,15 +151,15 @@ impl Expr {
         };
         Ok(expr)
     }
-    pub fn to_sympy(&self, py: Python) -> PyResult<String> {
-        let expr_str = match expr(*self) {
-            ExprVal::Constant(c) => return Ok(c.to_string()),
-            ExprVal::Variable(v) => return Ok(v.to_string()),
-            ExprVal::Add(e1, e2) => format!("({}) + ({})", e1.to_sympy(py)?, e2.to_sympy(py)?),
-            ExprVal::Sub(e1, e2) => format!("({}) - ({})", e1.to_sympy(py)?, e2.to_sympy(py)?),
-            ExprVal::Mul(e1, e2) => format!("({}) * ({})", e1.to_sympy(py)?, e2.to_sympy(py)?),
-            ExprVal::Div(e1, e2) => format!("({}) / ({})", e1.to_sympy(py)?, e2.to_sympy(py)?),
-            ExprVal::Power(e1, e2) => format!("({}) ** ({})", e1.to_sympy(py)?, e2.to_sympy(py)?),
+    pub fn to_string(&self, py: Python) -> PyResult<String> {
+        Ok(match expr(*self) {
+            ExprVal::Constant(c) => c.to_string(),
+            ExprVal::Variable(v) => v.to_string(),
+            ExprVal::Add(e1, e2) => format!("({}) + ({})", e1.to_string(py)?, e2.to_string(py)?),
+            ExprVal::Sub(e1, e2) => format!("({}) - ({})", e1.to_string(py)?, e2.to_string(py)?),
+            ExprVal::Mul(e1, e2) => format!("({}) * ({})", e1.to_string(py)?, e2.to_string(py)?),
+            ExprVal::Div(e1, e2) => format!("({}) / ({})", e1.to_string(py)?, e2.to_string(py)?),
+            ExprVal::Power(e1, e2) => format!("({}) ** ({})", e1.to_string(py)?, e2.to_string(py)?),
             ExprVal::Unary(op, x) => {
                 let op_str = match op {
                     RealFunction::Sin => "sin",
@@ -138,18 +174,19 @@ impl Expr {
                     RealFunction::Expression(_) => unimplemented!(),
                     RealFunction::Sign => "sign",
                 };
-                format!("{}({})", op_str, x.to_sympy(py)?)
+                format!("{}({})", op_str, x.to_string(py)?)
             },
-        };
-        let code = format!("str(sympy.simplify('{}'))", expr_str);
-        //println!("{code}");
+        })
+    }
+    pub fn to_sympy(&self, py: Python) -> PyResult<String> {
+        let code = format!("str(sympy.simplify('{}'))", self.to_string(py)?);
         let result: String = geval(py, &code, None)?.extract()?;
         Ok(result)
     }
     pub fn to_object(&self, py: Python) -> PyResult<PyObject> {
         Self::sympy_from_expr(py, &self.to_sympy(py)?)
     }
-    pub fn from_sympy(py: Python, expr_str: &str) -> PyResult<Self> {
+    pub fn from_string(py: Python, expr_str: &str) -> PyResult<Self> {
         let obj = Self::sympy_from_expr(py, expr_str)?;
         Self::from_sympy_expr(py, obj.as_ref(py))
     }
