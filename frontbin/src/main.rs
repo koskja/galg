@@ -226,6 +226,10 @@ where
             proj: hyperplane_conversion::<N, F, AnyCliff<N, F>>(dir),
         }
     }
+    pub fn visible(&self, a: SVector<F, N>) -> bool {
+        let z = self.dir.dot(&a);
+        z >= self.dist
+    }
 }
 impl<const N: usize, F: RealField + Copy> VecMap<F, N, { N - 1 }> for CelPer<N, F> {
     fn apply(&self, a: SVector<F, N>) -> SVector<F, { N - 1 }> {
@@ -246,22 +250,35 @@ impl<const N: usize, F: RealField + Copy> VecMap<F, N, { N - 1 }> for CelPer<N, 
 fn main() {
     let mut r = rand::thread_rng();
     let dir = Vector3::new(1., 0., 0.);
-    let proj = CelPer::new(Vector3::new(1., 0., 0.), 0.5);
-    for iphi in 0..30 {
+    let proj = CelPer::new(Vector3::new(1., 0., 0.), 0.1);
+    let i: Vec<_> = (0..1000)
+                .map(|_| Vector3::new(r.gen(), r.gen(), r.gen()) * 2. - Vector3::new(1., 1., 1.)).collect();
+    for iphi in 0..300 {
         let phi = iphi as f32 / 30.;
         let a: MobiusMap<2, f32, G2> = MobiusMap::lorentz(phi);
+        let a: MobiusMap<2, f32, G2> = MobiusMap::parabolic(Vector2::new(1., 0.), phi);
         save_points(
-            (0..1000)
-                .map(|_| Vector2::new(r.gen(), r.gen()) * 4.)
-                .map(|x| Vector2::new(2., 2.) + proj.apply(a.transform_celestial_sphere(proj.apply_inverse(x), dir))),
-            &format!("../svg/phi-{iphi}.svg"),
+                i.iter().filter_map(|x| {
+                    let p = a.transform_celestial_sphere(*x, dir);
+                    if !proj.visible(p) {
+                        return None
+                    }
+                    Some(Vector2::new(2., 2.) + proj.apply(p.normalize()))
+                }),
+            &format!("/home/koskja/svg/phi-{iphi}.svg"),
         );
     }
     //println!("{}", create_matrix(r))
 }
 
 pub fn save_points(points: impl Iterator<Item = Vector2<f32>>, name: &str) {
-    let d = Document::new().set("viewBox", (0, 0, 4, 4));
+    let mut d = Document::new().set("viewBox", (0, 0, 4, 4));
+    let circle = Circle::new()
+        .set("cx", 0.)
+        .set("cy", 0.)
+        .set("r", 3000.)
+        .set("fill", "black");
+    d = d.add(circle);
     svg::save(name, &draw_points(d, points)).unwrap()
 }
 pub fn draw_points(mut d: Document, points: impl Iterator<Item = Vector2<f32>>) -> Document {
@@ -269,8 +286,8 @@ pub fn draw_points(mut d: Document, points: impl Iterator<Item = Vector2<f32>>) 
         let circle = Circle::new()
             .set("cx", p.x)
             .set("cy", p.y)
-            .set("r", 0.01)
-            .set("fill", "red");
+            .set("r", 0.003)
+            .set("fill", "white");
         d = d.add(circle);
     }
     d
