@@ -9,9 +9,9 @@
 mod render;
 
 use galg::{
-    plusalg::PlusAlgebra, subset::{GradedSpace, Subbin}, variable::Expr, AnyCliff, CliffAlgebra, G2Var, G4Var, G2, G3, M1
+    plusalg::PlusAlgebra, subset::{GradedSpace, Subbin}, variable::Expr, AnyCliff, CliffAlgebra, G2Var, G3Var, G4Var, M4Var, G2, G3, M1, M4
 };
-use nalgebra::{Matrix2, RealField, SMatrix, SVector, Vector2, Vector3, Vector4};
+use nalgebra::{Matrix2, RealField, SMatrix, SVector, Vector1, Vector2, Vector3, Vector4};
 use num_traits::{real::Real, One};
 use rand::Rng;
 use std::{f32::consts::PI, marker::PhantomData};
@@ -224,6 +224,9 @@ where
             proj: hyperplane_conversion::<N, F, AnyCliff<N, F>>(dir),
         }
     }
+    pub fn dist(&self, a: SVector<F, N>) -> F {
+        self.dir.dot(&a)
+    }
     pub fn visible(&self, a: SVector<F, N>) -> bool {
         let z = self.dir.dot(&a);
         z >= self.dist
@@ -248,23 +251,42 @@ impl<const N: usize, F: RealField + Copy> VecMap<F, N, { N - 1 }> for CelPer<N, 
 fn main() {
     let proj = CelPer::new(Vector3::new(Expr::nconst(1.), Expr::zero(), Expr::zero()), Expr::nconst(0.3));
     let l_phi = Expr::nvar("lp");
-    //let p_phi = Expr::nvar("pp");
+    let p_phi = Expr::nvar("pp");
     let l: MobiusMap<2, Expr, G2Var> = MobiusMap::lorentz(l_phi);
-    //let p: MobiusMap<2, Expr, G2Var> = MobiusMap::parabolic(Vector2::new(Expr::nconst(1.), Expr::zero()), p_phi);
+    let p: MobiusMap<2, Expr, G2Var> = MobiusMap::parabolic(Vector2::new(Expr::nconst(1.), Expr::zero()), p_phi);
     let x = Vector3::new(Expr::nvar("a"), Expr::nvar("b"), Expr::nvar("c"));
     println!("{}", x.norm_squared());
     let dir = Vector3::new(Expr::nconst(1.), Expr::zero(), Expr::zero());
-    //let x = p.transform_celestial_sphere(x, dir);
-    let x = l.transform_celestial_sphere(x, dir);
-    let (a, b) = stereo2(x);
-    let y = stereo(a, b);
-    //let r = x[0] * x[0];
-    //let s = r + x[1] * x[1];
-    //let t = x[2] * x[2];
-    //let u = t + x[3] * x[3];
-    //println!("{}, {}, {}, {}, {}", r, s, t, u, r + t);
-    //println!("{}, {}", a,b);
-    println!("{}", x);
+    
+    println!("{}", js_transformation("transform", |a: SVector<Expr, 5>| {
+        let l: MobiusMap<2, Expr, G2Var> = MobiusMap::lorentz(a[3]);
+        let p: MobiusMap<2, Expr, G2Var> = MobiusMap::parabolic(Vector2::new(Expr::nconst(1.), Expr::zero()), a[4]);
+        let x = Vector3::new(a[0], a[1], a[2]);
+        let x = p.transform_celestial_sphere(x, dir);
+        let x = l.transform_celestial_sphere(x, dir);
+        x
+    }));
+    println!("{}", js_transformation("depth", |a: SVector<Expr, 3>| {
+        Vector1::new(proj.dist(a))
+    }));
+    println!("{}", js_transformation("project", |a: SVector<Expr, 3>| {
+        proj.apply(a)
+    }));
+}
+
+fn js_transformation<const N: usize, const M: usize>(name: &str, f: impl Fn(SVector<Expr, N>) -> SVector<Expr, M>) -> String {
+    let vec = SVector::from_fn(|i, _| Expr::nvar(&format!("val{i}")));
+    let res = f(vec);
+    let mut o = format!("function {name}(val) {{ var res = []; \n");
+    for i in 0..N {
+        o += &format!("var val{i} = val[{i}]; \n")
+    }
+    for j in 0..M {
+        o += &format!("res[{j}] = {}; \n", res[j])
+    }
+    o += "return res; \n}\n";
+    o
+
 }
 
 pub fn save_points(points: impl Iterator<Item = Vector2<f32>>, name: &str) {
