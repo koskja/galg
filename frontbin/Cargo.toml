@@ -8,6 +8,7 @@ galg = { path = "../galg" }
 nalgebra = "0.32.4"
 svg = "0.16.0"
 num-traits = "0.2.18"
+rand = "0.8.5"
 
 
 [dependencies.pyo3]

@@ -1,10 +1,21 @@
-use std::{cell::RefCell, cmp, ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign}};
+use std::{
+    cell::RefCell,
+    cmp,
+    ops::{
+        Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Rem, RemAssign, Sub,
+        SubAssign,
+    },
+};
 
 use approx::{AbsDiffEq, RelativeEq};
 use lazy_static::lazy_static;
 use nalgebra::{ComplexField, Field, RealField, SimdValue};
 use num_traits::{FromPrimitive, Num, One, Signed, Zero};
-use pyo3::{exceptions, types::{IntoPyDict, PyDict}, PyAny, PyErr, PyObject, PyResult, Python, ToPyObject};
+use pyo3::{
+    exceptions,
+    types::{IntoPyDict, PyDict},
+    PyAny, PyErr, PyObject, PyResult, Python, ToPyObject,
+};
 use simba::scalar::SubsetOf;
 
 use std::sync::Once;
@@ -21,24 +32,33 @@ fn get_storage() -> &'static RefCell<ExprStorage> {
     }
 }
 
-
-
-pub struct ExprStorage { 
+pub struct ExprStorage {
     blocks: Vec<Vec<ExprVal>>,
-    len: usize
+    len: usize,
 }
 impl ExprStorage {
     pub fn new() -> Self {
         Self {
             blocks: vec![],
-            len: 0
+            len: 0,
         }
     }
     pub fn push_expr(&mut self, expr: ExprVal) -> Expr {
-        if self.blocks.last().map(|x| x.capacity() - x.len()).unwrap_or(0) == 0 {
+        if self
+            .blocks
+            .last()
+            .map(|x| x.capacity() - x.len())
+            .unwrap_or(0)
+            == 0
+        {
             self.add_block();
         }
-        self.blocks.last_mut().as_mut().unwrap().push_within_capacity(expr).unwrap();
+        self.blocks
+            .last_mut()
+            .as_mut()
+            .unwrap()
+            .push_within_capacity(expr)
+            .unwrap();
         self.len += 1;
         Expr(self.len - 1)
     }
@@ -57,18 +77,18 @@ impl Index<usize> for ExprStorage {
             index -= self.blocks[i].len();
             i += 1;
         }
-        &self.blocks[i][index] 
+        &self.blocks[i][index]
     }
 }
 impl IndexMut<usize> for ExprStorage {
-    fn index_mut (&mut self, mut index: usize) -> &mut Self::Output {
+    fn index_mut(&mut self, mut index: usize) -> &mut Self::Output {
         assert!(index < self.len);
         let mut i = 0;
         while index >= self.blocks[i].len() {
             index -= self.blocks[i].len();
             i += 1;
         }
-        &mut self.blocks[i][index] 
+        &mut self.blocks[i][index]
     }
 }
 
@@ -89,12 +109,21 @@ pub fn optimise(i: Expr) -> PyResult<()> {
         let mut storage = get_storage().borrow_mut();
         storage[i.0] = storage[new.0];
         Ok(())
-    }
-    )
+    })
 }
 #[derive(Debug, Clone, Copy)]
 pub enum RealFunction {
-    Sin, Cos, Tan, Csc, Sec, Cot, Exp, Ln, Abs, Sign, Expression(Expr)
+    Sin,
+    Cos,
+    Tan,
+    Csc,
+    Sec,
+    Cot,
+    Exp,
+    Ln,
+    Abs,
+    Sign,
+    Expression(Expr),
 }
 #[derive(Debug, Clone, Copy)]
 pub enum ExprVal {
@@ -127,7 +156,11 @@ impl Expr {
             let e1 = Self::from_sympy_expr(py, args[0].as_ref(py))?;
             Ok(rnexpr(f(e1)))
         };
-        let expr = match sympy_expr.get_type().getattr("__name__")?.extract::<&str>()? {
+        let expr = match sympy_expr
+            .get_type()
+            .getattr("__name__")?
+            .extract::<&str>()?
+        {
             "Add" => bin_args(&|a, b| ExprVal::Add(a, b))?,
             "Sub" => bin_args(&|a, b| ExprVal::Sub(a, b))?,
             "Div" => bin_args(&|a, b| ExprVal::Div(a, b))?,
@@ -142,12 +175,17 @@ impl Expr {
             "Symbol" => {
                 let name: String = sympy_expr.getattr("name")?.extract()?;
                 Self::nvar(&name)
-            },
-            "Number" | "Integer" | "NegativeOne" | "Zero" | "One" | "Rational" | "Float" | "Half" => {
+            }
+            "Number" | "Integer" | "NegativeOne" | "Zero" | "One" | "Rational" | "Float"
+            | "Half" => {
                 let value: f32 = sympy_expr.extract()?;
                 Self::nconst(value)
-            },
-            s => return Err(PyErr::new::<exceptions::PyValueError, &'static str>(Box::leak(format!("Unsupported sympy expression `{s}`").into_boxed_str())))
+            }
+            s => {
+                return Err(PyErr::new::<exceptions::PyValueError, &'static str>(
+                    Box::leak(format!("Unsupported sympy expression `{s}`").into_boxed_str()),
+                ))
+            }
         };
         Ok(expr)
     }
@@ -175,7 +213,7 @@ impl Expr {
                     RealFunction::Sign => "sign",
                 };
                 format!("{}({})", op_str, x.to_string(py)?)
-            },
+            }
         })
     }
     pub fn to_sympy(&self, py: Python) -> PyResult<String> {
@@ -199,7 +237,10 @@ impl Expr {
 fn module_globals() -> PyObject {
     let list = vec!["sympy"];
     Python::with_gil(|py| {
-        let a: Vec<_> = list.into_iter().map(|x| (x, py.import(x).expect(&format!("Failed to import {x}")))).collect();
+        let a: Vec<_> = list
+            .into_iter()
+            .map(|x| (x, py.import(x).expect(&format!("Failed to import {x}"))))
+            .collect();
         a.into_py_dict(py).to_object(py)
     })
 }
@@ -219,8 +260,12 @@ impl Add for Expr {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        if rhs.is_zero() { return self }
-        if self.is_zero() { return rhs }
+        if rhs.is_zero() {
+            return self;
+        }
+        if self.is_zero() {
+            return rhs;
+        }
         nexpr(ExprVal::Add(self, rhs))
     }
 }
@@ -229,8 +274,12 @@ impl Sub for Expr {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        if rhs.is_zero() { return self }
-        if self.is_zero() { return -rhs }
+        if rhs.is_zero() {
+            return self;
+        }
+        if self.is_zero() {
+            return -rhs;
+        }
         nexpr(ExprVal::Sub(self, rhs))
     }
 }
@@ -239,10 +288,18 @@ impl Mul for Expr {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        if self.is_zero()  { return self }
-        if rhs.is_zero()  { return rhs }
-        if self.is_one()  { return rhs }
-        if rhs.is_one()  { return self }
+        if self.is_zero() {
+            return self;
+        }
+        if rhs.is_zero() {
+            return rhs;
+        }
+        if self.is_one() {
+            return rhs;
+        }
+        if rhs.is_one() {
+            return self;
+        }
         nexpr(ExprVal::Mul(self, rhs))
     }
 }
@@ -251,7 +308,9 @@ impl Div for Expr {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        if self.is_zero() && !rhs.is_zero() { return self }
+        if self.is_zero() && !rhs.is_zero() {
+            return self;
+        }
         nexpr(ExprVal::Div(self, rhs))
     }
 }
@@ -260,7 +319,9 @@ impl Neg for Expr {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        if self.is_zero() { return self }
+        if self.is_zero() {
+            return self;
+        }
         nexpr(ExprVal::Mul(nexpr(ExprVal::Constant(-1.0)), self))
     }
 }
@@ -317,7 +378,9 @@ impl Rem for Expr {
 }
 impl PartialOrd for Expr {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if self == other { return Some(cmp::Ordering::Equal) }
+        if self == other {
+            return Some(cmp::Ordering::Equal);
+        }
         Python::with_gil(|py| -> PyResult<_> {
             let obj = (*self - *other).to_object(py)?;
             let locals = PyDict::new(py);
@@ -325,7 +388,15 @@ impl PartialOrd for Expr {
             locals.set_item("zero", py.eval("0", None, None)?)?;
             let result: bool = geval(py, "obj < zero", Some(locals))?.extract()?;
             Ok(result)
-        }).ok().map(|x| if x { cmp::Ordering::Less } else { cmp::Ordering::Greater})
+        })
+        .ok()
+        .map(|x| {
+            if x {
+                cmp::Ordering::Less
+            } else {
+                cmp::Ordering::Greater
+            }
+        })
     }
 }
 impl PartialEq for Expr {
@@ -333,8 +404,7 @@ impl PartialEq for Expr {
         (*self - *other).is_zero()
     }
 }
-pub trait RealStuff: Field + PartialEq + PartialOrd + FromPrimitive {
-}
+pub trait RealStuff: Field + PartialEq + PartialOrd + FromPrimitive {}
 impl approx::AbsDiffEq for Expr {
     type Epsilon = Self;
 
@@ -410,22 +480,25 @@ impl Zero for Expr {
 
     fn is_zero(&self) -> bool {
         if matches!(expr(*self), ExprVal::Constant(0.)) {
-            return true
-        } 
+            return true;
+        }
         Python::with_gil(|py| -> PyResult<_> {
             let locals = PyDict::new(py);
             locals.set_item("obj", self.to_object(py)?)?;
             locals.set_item("zero", py.eval("0", None, None)?)?;
             let result: bool = geval(py, "obj == zero", Some(locals))?.extract()?;
             Ok(result)
-        }).unwrap()
+        })
+        .unwrap()
     }
 }
 impl Num for Expr {
     type FromStrRadixErr = <f32 as Num>::FromStrRadixErr;
 
     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
-        f32::from_str_radix(str, radix).map(ExprVal::Constant).map(nexpr)
+        f32::from_str_radix(str, radix)
+            .map(ExprVal::Constant)
+            .map(nexpr)
     }
 }
 impl RelativeEq for Expr {
@@ -433,8 +506,12 @@ impl RelativeEq for Expr {
         Self::nconst(f32::EPSILON)
     }
 
-    fn relative_eq(&self, other: &Self, epsilon: Self::Epsilon, max_relative: Self::Epsilon)
-        -> bool {
+    fn relative_eq(
+        &self,
+        other: &Self,
+        epsilon: Self::Epsilon,
+        max_relative: Self::Epsilon,
+    ) -> bool {
         if self.abs_diff_eq(other, epsilon) {
             return true;
         }
@@ -473,9 +550,7 @@ impl RemAssign for Expr {
         *self = *self % other;
     }
 }
-impl Field for Expr {
-
-}
+impl Field for Expr {}
 impl core::fmt::Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", Python::with_gil(|py| self.to_sympy(py).unwrap()))
@@ -741,7 +816,6 @@ impl ComplexField for Expr {
         Self::nconst(2.).powf(self)
     }
 
-
     #[inline]
     fn exp_m1(self) -> Self {
         nexpr(ExprVal::Unary(RealFunction::Exp, self))
@@ -817,16 +891,16 @@ impl ComplexField for Expr {
         (self.sin(), self.cos())
     }
 
-//            #[inline]
-//            fn exp_m1(self) -> Self {
-//                $libm::exp_m1(self)
-//            }
-//
-//            #[inline]
-//            fn ln_1p(self) -> Self {
-//                $libm::ln_1p(self)
-//            }
-//
+    //            #[inline]
+    //            fn exp_m1(self) -> Self {
+    //                $libm::exp_m1(self)
+    //            }
+    //
+    //            #[inline]
+    //            fn ln_1p(self) -> Self {
+    //                $libm::ln_1p(self)
+    //            }
+    //
     #[inline]
     fn sinh(self) -> Self {
         todo!()

@@ -1,5 +1,5 @@
 use nalgebra::{Complex, Vector2};
-use svg::    node::element::{path::Data, Path};
+use svg::node::element::{path::Data, Path};
 
 fn lerp(start: f32, end: f32, t: f32) -> f32 {
     (1.0 - t) * start + t * end

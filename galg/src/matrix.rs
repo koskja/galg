@@ -77,7 +77,7 @@ impl core::fmt::Debug for MatrixG3 {
 }
 impl crate::subset::GradedSpace<3, f32> for MatrixG3 {
     type Index = Subbin<3>;
-    
+
     fn new(elem: f32, i: impl IndexSet<3>) -> Self {
         let a = Subbin::convert_from(i).to_bits();
         match a {
@@ -118,7 +118,7 @@ impl crate::subset::GradedSpace<3, f32> for MatrixG3 {
             .map(|(val, elem)| Self::new(val, elem))
             .fold(Self::default(), Add::add)
     }
-    
+
     fn zero() -> Self {
         Self(Zero::zero())
     }

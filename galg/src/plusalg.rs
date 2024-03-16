@@ -5,7 +5,9 @@ use crate::{
 use derive_more::{DivAssign, MulAssign, RemAssign};
 use nalgebra::RealField;
 use std::{
-    fmt::Display, marker::PhantomData, ops::{Add, Div, Mul, Neg, Sub}
+    fmt::Display,
+    marker::PhantomData,
+    ops::{Add, Div, Mul, Neg, Sub},
 };
 /// Creates a new Clifford algebra by extending an algebra `A` with a new vector orthogonal to all its elements, e<sub>n</sub>. e<sub>n</sub><sup>2</sup> = `EN2`. `n = DIM + 1`
 #[derive(Clone, Copy, MulAssign, DivAssign, RemAssign)]
@@ -22,8 +24,8 @@ impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, 
         Self(A::zero(), A::zero(), PhantomData)
     }
 }
-impl<const DIM: usize, const EN2: i8, F: Display + Copy + RealField, A: CliffAlgebra<DIM, F>> core::fmt::Debug
-    for PlusAlgebra<DIM, EN2, F, A>
+impl<const DIM: usize, const EN2: i8, F: Display + Copy + RealField, A: CliffAlgebra<DIM, F>>
+    core::fmt::Debug for PlusAlgebra<DIM, EN2, F, A>
 where
     [(); DIM + 1]:,
 {
@@ -89,11 +91,7 @@ impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, 
             //println!("({}+({})e{n})*({}+({})e{n})=({}+({})e{n})", self.0.print(), self.1.print(), rhs.0.print(), rhs.1.print(), a.print(), b.print());
         }
 
-        Self(
-            a,
-            b,
-            PhantomData,
-        )
+        Self(a, b, PhantomData)
     }
 }
 impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>>
@@ -122,7 +120,7 @@ impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, 
             self.0.project(Subbin::bits(bin & !mask))
         }
     }
-    
+
     fn zero() -> Self {
         Self(A::zero(), A::zero(), PhantomData)
     }
@@ -136,7 +134,8 @@ where
         self.0.scalar_product(rhs.0) + self.1.scalar_product(rhs.1.involution()) * EN2 as f32
     } */
 
-    fn involution(self) -> Self { // cmon bruh
+    fn involution(self) -> Self {
+        // cmon bruh
         Self(self.0.involution(), -self.1.involution(), PhantomData)
     }
 
@@ -146,7 +145,7 @@ where
 
     fn conjugation(self) -> Self {
         Self(self.0.conjugation(), -self.1.reversion(), PhantomData)
-    } 
+    }
 
     fn nscalar(a: F) -> Self {
         Self(A::nscalar(a), A::nscalar(F::zero()), PhantomData)
