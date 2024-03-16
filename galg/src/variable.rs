@@ -116,6 +116,9 @@ pub enum RealFunction {
     Sin,
     Cos,
     Tan,
+    Sinh,
+    Cosh,
+    Tanh,
     Csc,
     Sec,
     Cot,
@@ -147,9 +150,11 @@ impl Expr {
     pub fn from_sympy_expr(py: Python, sympy_expr: &PyAny) -> PyResult<Self> {
         let bin_args = |f: &dyn Fn(Self, Self) -> ExprVal| -> PyResult<Self> {
             let args: Vec<PyObject> = sympy_expr.getattr("args")?.extract()?;
+            if args.len() > 2 {
+                //println!("{sympy_expr} {args:?} {}", sympy_expr.get_type())
+            }
             let e1 = Self::from_sympy_expr(py, args[0].as_ref(py))?;
-            let e2 = Self::from_sympy_expr(py, args[1].as_ref(py))?;
-            Ok(rnexpr(f(e1, e2)))
+            args.into_iter().skip(1).try_fold(e1, |acc, en| Ok(rnexpr(f(acc, Self::from_sympy_expr(py, en.as_ref(py))?))))
         };
         let unary_arg = |f: &dyn Fn(Self) -> ExprVal| -> PyResult<Self> {
             let args: Vec<PyObject> = sympy_expr.getattr("args")?.extract()?;
@@ -169,6 +174,10 @@ impl Expr {
             "sin" => unary_arg(&|a| ExprVal::Unary(RealFunction::Sin, a))?,
             "cos" => unary_arg(&|a| ExprVal::Unary(RealFunction::Cos, a))?,
             "tan" => unary_arg(&|a| ExprVal::Unary(RealFunction::Tan, a))?,
+            "sinh" => unary_arg(&|a| ExprVal::Unary(RealFunction::Sinh, a))?,
+            "cosh" => unary_arg(&|a| ExprVal::Unary(RealFunction::Cosh, a))?,
+            "tanh" => unary_arg(&|a| ExprVal::Unary(RealFunction::Tanh, a))?,
+            "exp" => unary_arg(&|a| ExprVal::Unary(RealFunction::Exp, a))?,
             "csc" => unary_arg(&|a| ExprVal::Unary(RealFunction::Csc, a))?,
             "sec" => unary_arg(&|a| ExprVal::Unary(RealFunction::Sec, a))?,
             "cot" => unary_arg(&|a| ExprVal::Unary(RealFunction::Cot, a))?,
@@ -203,6 +212,9 @@ impl Expr {
                     RealFunction::Sin => "sin",
                     RealFunction::Cos => "cos",
                     RealFunction::Tan => "tan",
+                    RealFunction::Sinh => "sinh",
+                    RealFunction::Cosh => "cosh",
+                    RealFunction::Tanh => "tanh",
                     RealFunction::Csc => "csc",
                     RealFunction::Sec => "sec",
                     RealFunction::Cot => "cot",
@@ -253,7 +265,7 @@ fn geval<'py>(py: Python<'py>, code: &str, locals: Option<&PyDict>) -> PyResult<
     py.eval(code, locals, Some(GLOBALS.as_ref(py).downcast().unwrap()))
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct Expr(usize);
 
 impl Add for Expr {
@@ -269,7 +281,11 @@ impl Add for Expr {
         nexpr(ExprVal::Add(self, rhs))
     }
 }
-
+impl core::fmt::Debug for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+}
 impl Sub for Expr {
     type Output = Self;
 
@@ -903,12 +919,12 @@ impl ComplexField for Expr {
     //
     #[inline]
     fn sinh(self) -> Self {
-        todo!()
+        nexpr(ExprVal::Unary(RealFunction::Sinh, self))
     }
 
     #[inline]
     fn cosh(self) -> Self {
-        todo!()
+        nexpr(ExprVal::Unary(RealFunction::Cosh, self))
     }
 
     #[inline]

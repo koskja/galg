@@ -9,12 +9,9 @@
 mod render;
 
 use galg::{
-    plusalg::PlusAlgebra,
-    subset::{GradedSpace, Subbin},
-    variable::Expr,
-    AnyCliff, CliffAlgebra, G4Var, G2, G3, M1,
+    plusalg::PlusAlgebra, subset::{GradedSpace, Subbin}, variable::Expr, AnyCliff, CliffAlgebra, G2Var, G4Var, G2, G3, M1
 };
-use nalgebra::{Matrix2, RealField, SMatrix, SVector, Vector2, Vector3};
+use nalgebra::{Matrix2, RealField, SMatrix, SVector, Vector2, Vector3, Vector4};
 use num_traits::{real::Real, One};
 use rand::Rng;
 use std::{f32::consts::PI, marker::PhantomData};
@@ -194,13 +191,14 @@ where
     MatrixMap(create_matrix2(from), create_matrix2(to))
 }
 fn stereo<const N: usize, F: RealField + Copy>(x: SVector<F, N>, y: F) -> SVector<F, N> {
-    x * F::one() / (F::one() - y)
+    x * (F::one() / (F::one() - y))
 }
 fn stereo2<const N: usize, F: RealField + Copy>(x: SVector<F, N>) -> (SVector<F, N>, F) {
     let one = F::one();
     let two = one + one;
     let x2 = x.norm_squared();
-    (x * (two / (x2 + one)), (x2 - one) / (x2 + one))
+    let a = one / (x2 + one);
+    (x * two * a, (x2 - one) * a)
 }
 pub struct CelPer<const N: usize, F: RealField + Copy>
 where
@@ -248,27 +246,25 @@ impl<const N: usize, F: RealField + Copy> VecMap<F, N, { N - 1 }> for CelPer<N, 
 }
 
 fn main() {
-    let mut r = rand::thread_rng();
-    let dir = Vector3::new(1., 0., 0.);
-    let proj = CelPer::new(Vector3::new(1., 0., 0.), 0.1);
-    let i: Vec<_> = (0..1000)
-                .map(|_| Vector3::new(r.gen(), r.gen(), r.gen()) * 2. - Vector3::new(1., 1., 1.)).collect();
-    for iphi in 0..300 {
-        let phi = iphi as f32 / 30.;
-        let a: MobiusMap<2, f32, G2> = MobiusMap::lorentz(phi);
-        let a: MobiusMap<2, f32, G2> = MobiusMap::parabolic(Vector2::new(1., 0.), phi);
-        save_points(
-                i.iter().filter_map(|x| {
-                    let p = a.transform_celestial_sphere(*x, dir);
-                    if !proj.visible(p) {
-                        return None
-                    }
-                    Some(Vector2::new(2., 2.) + proj.apply(p.normalize()))
-                }),
-            &format!("/home/koskja/svg/phi-{iphi}.svg"),
-        );
-    }
-    //println!("{}", create_matrix(r))
+    let proj = CelPer::new(Vector3::new(Expr::nconst(1.), Expr::zero(), Expr::zero()), Expr::nconst(0.3));
+    let l_phi = Expr::nvar("lp");
+    //let p_phi = Expr::nvar("pp");
+    let l: MobiusMap<2, Expr, G2Var> = MobiusMap::lorentz(l_phi);
+    //let p: MobiusMap<2, Expr, G2Var> = MobiusMap::parabolic(Vector2::new(Expr::nconst(1.), Expr::zero()), p_phi);
+    let x = Vector3::new(Expr::nvar("a"), Expr::nvar("b"), Expr::nvar("c"));
+    println!("{}", x.norm_squared());
+    let dir = Vector3::new(Expr::nconst(1.), Expr::zero(), Expr::zero());
+    //let x = p.transform_celestial_sphere(x, dir);
+    let x = l.transform_celestial_sphere(x, dir);
+    let (a, b) = stereo2(x);
+    let y = stereo(a, b);
+    //let r = x[0] * x[0];
+    //let s = r + x[1] * x[1];
+    //let t = x[2] * x[2];
+    //let u = t + x[3] * x[3];
+    //println!("{}, {}, {}, {}, {}", r, s, t, u, r + t);
+    //println!("{}, {}", a,b);
+    println!("{}", x);
 }
 
 pub fn save_points(points: impl Iterator<Item = Vector2<f32>>, name: &str) {
