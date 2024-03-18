@@ -17,6 +17,7 @@ pub mod matrix;
 pub mod plusalg;
 pub mod subset;
 pub mod test;
+pub mod infin;
 
 use std::{
     f32::consts::PI,
