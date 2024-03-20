@@ -5,51 +5,10 @@ use crate::{
 };
 use nalgebra::RealField;
 use std::{
+    fmt::Display,
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
-
-impl GradedSpace<0, f32> for f32 {
-    type Index = Subbin<0>;
-
-    fn assign(&mut self, elem: f32, _: impl IndexSet<0>) {
-        *self = elem;
-    }
-
-    fn project(&self, _: impl IndexSet<0>) -> f32 {
-        *self
-    }
-
-    fn iter(&self) -> impl Iterator<Item = (f32, Self::Index)> {
-        Some((*self, Subbin::bits(0))).into_iter()
-    }
-}
-impl CliffAlgebra<0, f32> for f32 {
-    fn involution(self) -> Self {
-        self
-    }
-    fn reversion(self) -> Self {
-        self
-    }
-    fn conjugation(self) -> Self {
-        self
-    }
-}
-impl GradedSpace<0, f64> for f64 {
-    type Index = Subbin<0>;
-
-    fn assign(&mut self, elem: f64, _: impl IndexSet<0>) {
-        *self = elem;
-    }
-
-    fn project(&self, _: impl IndexSet<0>) -> f64 {
-        *self
-    }
-
-    fn iter(&self) -> impl Iterator<Item = (f64, Self::Index)> {
-        Some((*self, Subbin::bits(0))).into_iter()
-    }
-}
 /// Creates a new Clifford algebra by extending an algebra `A` with a new vector orthogonal to all its elements, e<sub>n</sub>. e<sub>n</sub><sup>2</sup> = `EN2`. `n = DIM + 1`
 #[derive(Clone, Copy)]
 pub struct PlusAlgebra<
@@ -58,7 +17,7 @@ pub struct PlusAlgebra<
     F: Copy + RealField,
     A: CliffAlgebra<DIM, F>,
 >(A, A, PhantomData<F>);
-impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> core::fmt::Debug
+impl<const DIM: usize, const EN2: i8, F: Display + Copy + RealField, A: CliffAlgebra<DIM, F>> core::fmt::Debug
     for PlusAlgebra<DIM, EN2, F, A>
 where
     [(); DIM + 1]:,
@@ -94,11 +53,13 @@ impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, 
 
     fn mul(self, rhs: Self) -> Self::Output {
         let (_self, _rhs) = (self.clone(), rhs.clone());
-        Self(
-            _self.0 * _rhs.0 + _self.1 * _rhs.1.involution() * F::from_f32(EN2 as f32).unwrap(),
-            self.0 * rhs.1 + self.1 * rhs.0.involution(),
-            PhantomData,
-        )
+        let a = _self.0 * _rhs.0 + _self.1 * _rhs.1.involution() * F::from_f32(EN2 as f32).unwrap();
+        let b = self.0.clone() * rhs.1.clone() + self.1.clone() * rhs.0.clone().involution();
+        if !a.iter().all(|(val, _)| val.is_zero()) || !b.iter().all(|(val, _)| val.is_zero()) {
+            //println!("({}+({})e{n})*({}+({})e{n})=({}+({})e{n})", self.0.print(), self.1.print(), rhs.0.print(), rhs.1.print(), a.print(), b.print());
+        }
+
+        Self(a, b, PhantomData)
     }
 }
 impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>>
@@ -127,6 +88,10 @@ impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, 
             self.0.project(Subbin::bits(bin & !mask))
         }
     }
+
+    fn zero() -> Self {
+        Self(A::zero(), A::zero(), PhantomData)
+    }
 }
 impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>>
     CliffAlgebra<{ DIM + 1 }, F> for PlusAlgebra<DIM, EN2, F, A>
@@ -135,19 +100,20 @@ where
 {
     /*fn scalar_product(self, rhs: Self) -> f32 {
         self.0.scalar_product(rhs.0) + self.1.scalar_product(rhs.1.involution()) * EN2 as f32
-    }
+    } */
 
-    fn involution(self) -> Self { // cmon bruh
-        Self(self.0.involution(), -self.1.involution())
+    fn involution(self) -> Self {
+        // cmon bruh
+        Self(self.0.involution(), -self.1.involution(), PhantomData)
     }
 
     fn reversion(self) -> Self {
-        Self(self.0.reversion(), self.1.conjugation())
+        Self(self.0.reversion(), self.1.conjugation(), PhantomData)
     }
 
     fn conjugation(self) -> Self {
-        Self(self.0.conjugation(), -self.1.reversion())
-    } */
+        Self(self.0.conjugation(), -self.1.reversion(), PhantomData)
+    }
 
     fn nscalar(a: F) -> Self {
         Self(A::nscalar(a), A::nscalar(F::zero()), PhantomData)
@@ -155,7 +121,6 @@ where
 
     fn nvec(v: &[F]) -> Self {
         let (l, r) = v.split_at(DIM);
-        println!("{DIM} {v:?} {l:?} {r:?}");
         Self(A::nvec(l), A::nscalar(r[0]), PhantomData)
     }
 }
