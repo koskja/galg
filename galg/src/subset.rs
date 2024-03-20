@@ -3,6 +3,8 @@ use std::{
     ops::{Add, Mul},
 };
 
+use crate::defer_default_impl;
+
 pub mod default {
     use super::{IndexSet, Subbin};
 
@@ -74,35 +76,6 @@ pub mod default {
     }
 }
 
-macro_rules! defer_default_impl {
-    (@name empty) => { defer_default_impl!(@fn empty() -> Self); };
-    (@name full) => { defer_default_impl!(@fn full() -> Self); };
-    (@name new) => { defer_default_impl!(@fn new(index: [usize]) -> Self); };
-    (@name size) => { defer_default_impl!(@fn size(self: [&Self]) -> usize); };
-    (@name contains) => { defer_default_impl!(@fn contains(self: [&Self], index: [usize]) -> bool); };
-    (@name from_iter) => { defer_default_impl!(@fn from_iter(list: [impl Iterator<Item = usize>]) -> Self); };
-    (@name iter_elems) => { defer_default_impl!(@fn iter_elems(self: [&Self]) -> impl '_ + Iterator<Item = usize>); };
-    (@name conjunction) => { defer_default_impl!(@fn conjunction(self: [Self], with: [Self]) -> Self); };
-    (@name disjunction) => { defer_default_impl!(@fn disjunction(self: [Self], with: [Self]) -> Self); };
-    (@name symmetric_difference) => { defer_default_impl!(@fn symmetric_difference(self: [Self], with: [Self]) -> Self); };
-    (@name relative_complement) => { defer_default_impl!(@fn relative_complement(self: [Self], remove: [Self]) -> Self); };
-    (@name complement) => { defer_default_impl!(@fn complement(self: [Self]) -> Self); };
-    (@name convert_from) => { defer_default_impl!(@fn convert_from(t: [impl IndexSet<DIM>]) -> Self); };
-    (@name iter_grade) => { defer_default_impl!(@fn iter_grade(k: [usize]) -> impl Iterator<Item = Self>); };
-    (@fn $n:ident($($a:ident: [$($ty:tt)*]),*) -> $($t:tt)+) => {
-        fn $n($($a: $($ty)*),*) -> $($t)* { $crate::subset::default::$n::<DIM, Self>($($a),*) }
-    };
-    (, $(t:tt)*) => { $($t)* };
-    ($n:ident, $($t:tt)*) => {
-        defer_default_impl!(@name $n);
-        defer_default_impl!($($t)*);
-    };
-    ($n:ident $($t:tt)*) => {
-        defer_default_impl!(@name $n);
-        defer_default_impl!($($t)*);
-    };
-    () => {};
-}
 pub trait IndexSet<const DIM: usize>: Sized + PartialEq + Clone {
     fn empty() -> Self;
     fn full() -> Self;

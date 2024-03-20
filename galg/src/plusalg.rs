@@ -1,12 +1,12 @@
 use crate::{
+    impl_num_traits,
     subset::{GradedSpace, IndexSet, Subbin},
     CliffAlgebra,
 };
-use derive_more::{DivAssign, MulAssign, RemAssign};
 use nalgebra::RealField;
 use std::{
     marker::PhantomData,
-    ops::{Add, Div, Mul, Neg, Sub},
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
 impl GradedSpace<0, f32> for f32 {
@@ -51,20 +51,13 @@ impl GradedSpace<0, f64> for f64 {
     }
 }
 /// Creates a new Clifford algebra by extending an algebra `A` with a new vector orthogonal to all its elements, e<sub>n</sub>. e<sub>n</sub><sup>2</sup> = `EN2`. `n = DIM + 1`
-#[derive(Clone, Copy, MulAssign, DivAssign, RemAssign)]
+#[derive(Clone, Copy)]
 pub struct PlusAlgebra<
     const DIM: usize,
     const EN2: i8,
     F: Copy + RealField,
     A: CliffAlgebra<DIM, F>,
 >(A, A, PhantomData<F>);
-impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Default
-    for PlusAlgebra<DIM, EN2, F, A>
-{
-    fn default() -> Self {
-        Self(A::zero(), A::zero(), PhantomData)
-    }
-}
 impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> core::fmt::Debug
     for PlusAlgebra<DIM, EN2, F, A>
 where
@@ -83,49 +76,15 @@ where
         write!(f, "]")
     }
 }
-impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Add<Self>
-    for PlusAlgebra<DIM, EN2, F, A>
-{
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0, self.1 + rhs.1, PhantomData)
-    }
-}
-impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Sub<Self>
-    for PlusAlgebra<DIM, EN2, F, A>
-{
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0, self.1 - rhs.1, PhantomData)
-    }
-}
-impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Neg
-    for PlusAlgebra<DIM, EN2, F, A>
-{
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        Self(-self.0, -self.1, PhantomData)
-    }
-}
-impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Mul<F>
-    for PlusAlgebra<DIM, EN2, F, A>
-{
-    type Output = Self;
-
-    fn mul(self, rhs: F) -> Self::Output {
-        Self(self.0 * rhs, self.1 * rhs, PhantomData)
-    }
-}
-impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Div<F>
-    for PlusAlgebra<DIM, EN2, F, A>
-{
-    type Output = Self;
-
-    fn div(self, rhs: F) -> Self::Output {
-        Self(self.0 / rhs, self.1 / rhs, PhantomData)
+impl_num_traits! {
+    impl[const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>] ... for PlusAlgebra<DIM, EN2, F, A> {
+        Add(defo; [self, rhs] => Self(self.0 + rhs.0, self.1 + rhs.1, PhantomData)),
+        Sub(defo; [self, rhs] => Self(self.0 - rhs.0, self.1 + rhs.1, PhantomData)),
+        Neg(defo; [self] => Self(-self.0, -self.1, PhantomData)),
+        Mul[F](defo; [self, rhs] => Self(self.0 * rhs, self.1 * rhs, PhantomData)),
+        Div[F](defo; [self, rhs] => Self(self.0 / rhs, self.1 / rhs, PhantomData)),
+        Default([] => Self(A::zero(), A::zero(), PhantomData)),
+        AddAssign(), SubAssign(), MulAssign(), MulAssign[F](), DivAssign[F]()
     }
 }
 impl<const DIM: usize, const EN2: i8, F: Copy + RealField, A: CliffAlgebra<DIM, F>> Mul<Self>
