@@ -106,6 +106,9 @@ macro_rules! impl_num_traits {
     (@4 DivAssign:) => {
         fn div_assign(&mut self, rhs: Self) { *self = self.clone() / rhs }
     };
+    (@4 RemAssign:) => {
+        fn rem_assign(&mut self, rhs: Self) { *self = self.clone() % rhs }
+    };
     (@4 Debug: [$l:tt, $r:tt] => $($impl:tt)*) => {
         fn fmt(&$l, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { $($impl)* }
     };
@@ -123,6 +126,49 @@ macro_rules! impl_num_traits {
     };
     (@4 Default: [] => $($impl:tt)*) => {
         fn default() -> Self { $($impl)* }
+    };
+    (@4 SimdValue:) => {
+        type Element = Self;
+        type SimdBool = bool;
+
+        #[inline(always)]
+        fn lanes() -> usize {
+            1
+        }
+
+        #[inline(always)]
+        fn splat(val: Self::Element) -> Self {
+            val
+        }
+
+        #[inline(always)]
+        fn extract(&self, _: usize) -> Self::Element {
+            *self
+        }
+
+        #[inline(always)]
+        unsafe fn extract_unchecked(&self, _: usize) -> Self::Element {
+            *self
+        }
+
+        #[inline(always)]
+        fn replace(&mut self, _: usize, val: Self::Element) {
+            *self = val
+        }
+
+        #[inline(always)]
+        unsafe fn replace_unchecked(&mut self, _: usize, val: Self::Element) {
+            *self = val
+        }
+
+        #[inline(always)]
+        fn select(self, cond: Self::SimdBool, other: Self) -> Self {
+            if cond {
+                self
+            } else {
+                other
+            }
+        }
     };
     (@4 $trait:ident $([$($t:tt)*])?: defo; $($impl:tt)*) => {
         type Output = Self;

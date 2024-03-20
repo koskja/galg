@@ -20,6 +20,8 @@ use simba::scalar::SubsetOf;
 
 use std::sync::Once;
 
+use crate::impl_num_traits;
+
 static INIT: Once = Once::new();
 static mut VALUE: Option<RefCell<ExprStorage>> = None;
 
@@ -342,49 +344,6 @@ impl Neg for Expr {
     }
 }
 
-impl SimdValue for Expr {
-    type Element = Self;
-    type SimdBool = bool;
-
-    #[inline(always)]
-    fn lanes() -> usize {
-        1
-    }
-
-    #[inline(always)]
-    fn splat(val: Self::Element) -> Self {
-        val
-    }
-
-    #[inline(always)]
-    fn extract(&self, _: usize) -> Self::Element {
-        *self
-    }
-
-    #[inline(always)]
-    unsafe fn extract_unchecked(&self, _: usize) -> Self::Element {
-        *self
-    }
-
-    #[inline(always)]
-    fn replace(&mut self, _: usize, val: Self::Element) {
-        *self = val
-    }
-
-    #[inline(always)]
-    unsafe fn replace_unchecked(&mut self, _: usize, val: Self::Element) {
-        *self = val
-    }
-
-    #[inline(always)]
-    fn select(self, cond: Self::SimdBool, other: Self) -> Self {
-        if cond {
-            self
-        } else {
-            other
-        }
-    }
-}
 impl Rem for Expr {
     type Output = Self;
 
@@ -538,32 +497,10 @@ impl RelativeEq for Expr {
         Signed::abs_sub(self, other) <= largest * max_relative
     }
 }
-impl AddAssign for Expr {
-    fn add_assign(&mut self, other: Self) {
-        *self = *self + other;
-    }
-}
-impl SubAssign for Expr {
-    fn sub_assign(&mut self, other: Self) {
-        *self = *self - other;
-    }
-}
-
-impl MulAssign for Expr {
-    fn mul_assign(&mut self, other: Self) {
-        *self = *self * other;
-    }
-}
-
-impl DivAssign for Expr {
-    fn div_assign(&mut self, other: Self) {
-        *self = *self / other;
-    }
-}
-
-impl RemAssign for Expr {
-    fn rem_assign(&mut self, other: Self) {
-        *self = *self % other;
+impl_num_traits!{
+    impl ... for Expr {
+        SimdValue(),
+        AddAssign(), SubAssign(), MulAssign(), DivAssign(), RemAssign(),
     }
 }
 impl Field for Expr {}

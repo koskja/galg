@@ -28,7 +28,7 @@ pub mod variable;
 use std::{
     f32::consts::PI,
     fmt::Debug,
-    ops::{Add, Div, Mul, Neg, Sub},
+    ops::{Add, AddAssign, Div, Mul, Neg, Sub, DivAssign, MulAssign, SubAssign},
 };
 
 use nalgebra::{RealField, SVector};
@@ -94,43 +94,31 @@ pub fn rep<const K: usize>(a: [usize; K], step: usize, n: usize) -> impl Iterato
 pub struct AnyCliff<const DIM: usize, F>([F; 1 << DIM])
 where
     [(); 1 << DIM]:;
-impl<const DIM: usize, F: Copy + RealField> Add for AnyCliff<DIM, F>
+impl<const DIM: usize, F: Copy + RealField> AnyCliff<DIM, F>
 where
     [(); 1 << DIM]:,
 {
-    type Output = Self;
-
-    fn add(mut self, rhs: Self) -> Self::Output {
-        for (i, j) in (&mut self.0).into_iter().zip(rhs.0.into_iter()) {
-            *i += j
-        }
-        self
-    }
-}
-impl<const DIM: usize, F: Copy + RealField> Sub for AnyCliff<DIM, F>
-where
-    [(); 1 << DIM]:,
-{
-    type Output = Self;
-
-    fn sub(mut self, rhs: Self) -> Self::Output {
-        for (i, j) in (&mut self.0).into_iter().zip(rhs.0.into_iter()) {
-            *i -= j
-        }
-        self
-    }
-}
-impl<const DIM: usize, F: Copy + RealField> Mul<F> for AnyCliff<DIM, F>
-where
-    [(); 1 << DIM]:,
-{
-    type Output = Self;
-
-    fn mul(mut self, rhs: F) -> Self::Output {
+    fn map1(mut self, f: &impl Fn(F) -> F) -> Self {
         for i in &mut self.0 {
-            *i *= rhs
+            *i = f(*i)
         }
         self
+    }
+    fn map2(mut self, rhs: Self, f: &impl Fn(F, F) -> F) -> Self {
+        for (i, j) in (&mut self.0).into_iter().zip(rhs.0.into_iter()) {
+            *i = f(*i, j)
+        }
+        self
+    }
+}
+impl_num_traits! {
+    impl[const DIM: usize, F: Copy + RealField] ... for AnyCliff<DIM, F> where [[(); 1 << DIM]:] {
+        Add(defo; [self, rhs] => self.map2(rhs, &Add::add)),
+        Sub(defo; [self, rhs] => self.map2(rhs, &Sub::sub)),
+        Neg(defo; [self] => self.map1(&Neg::neg)),
+        Mul[F](defo; [self, rhs] => self.map1(&|x| x * rhs)),
+        Div[F](defo; [self, rhs] => self.map1(&|x| x / rhs)),
+        AddAssign(), SubAssign(), MulAssign[F](), DivAssign[F]()
     }
 }
 macro_rules! a {
@@ -171,32 +159,6 @@ where
 
     fn project(&self, i: impl IndexSet<DIM>) -> F {
         a!((DIM) => (project self, i) => [(0, GG0),(1, GG1),(2, GG2),(3, GG3),(4, GG4),(5, GG5),(6, GG6),(7, GG7),(8, GG8)])
-    }
-}
-impl<const DIM: usize, F: Copy + RealField> Div<F> for AnyCliff<DIM, F>
-where
-    [(); 1 << DIM]:,
-{
-    type Output = Self;
-
-    fn div(mut self, rhs: F) -> Self::Output {
-        for i in &mut self.0 {
-            *i *= rhs
-        }
-        self
-    }
-}
-impl<const DIM: usize, F: Copy + RealField> Neg for AnyCliff<DIM, F>
-where
-    [(); 1 << DIM]:,
-{
-    type Output = Self;
-
-    fn neg(mut self) -> Self::Output {
-        for i in &mut self.0 {
-            *i *= -F::one();
-        }
-        self
     }
 }
 impl<const DIM: usize, F: Copy + RealField> Mul for AnyCliff<DIM, F>
