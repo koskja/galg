@@ -5,6 +5,7 @@ use std::ops::{
 use nalgebra::{Complex, Matrix2, Vector3};
 
 use crate::{
+    impl_num_traits,
     subset::{GradedSpace, IndexSet, Subbin},
     CliffAlgebra,
 };
@@ -158,35 +159,11 @@ impl core::fmt::Display for MatrixG3 {
         Ok(())
     }
 }
-impl Index<(usize, usize)> for MatrixG3 {
-    type Output = Complex<f32>;
-
-    fn index(&self, index: (usize, usize)) -> &Self::Output {
-        &self.0[index]
-    }
-}
-impl IndexMut<(usize, usize)> for MatrixG3 {
-    fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
-        &mut self.0[index]
-    }
-}
 fn s1(a: f32, b: f32) -> f32 {
     a / 2. + b / 2.
 }
 fn s2(a: f32, b: f32) -> f32 {
     a / 2. - b / 2.
-}
-
-impl From<Complex<f32>> for MatrixG3 {
-    fn from(value: Complex<f32>) -> Self {
-        Self(Pauli2::identity() * value)
-    }
-}
-
-impl From<f32> for MatrixG3 {
-    fn from(value: f32) -> Self {
-        Self::from(Complex::from(value))
-    }
 }
 
 impl From<Vector3<f32>> for MatrixG3 {
@@ -202,77 +179,24 @@ impl From<Vector3<f32>> for MatrixG3 {
             + Self(Pauli2::new(re, ze, ze, -re)) * c
     }
 }
-
-impl Add for MatrixG3 {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        self.binary_map(rhs, Add::add)
+impl_num_traits! {
+    impl ... for MatrixG3 {
+        Add(defo; [self, rhs] => self.binary_map(rhs, Add::add)),
+        Sub(defo; [self, rhs] => self.binary_map(rhs, Sub::sub)),
+        Mul(defo; [self, rhs] => self.binary_map(rhs, Mul::mul)),
+        Neg(defo; [self] => self.unary_map(Neg::neg)),
+        Index[(usize, usize)](Complex<f32>; [self, index] => &self.0[index]),
+        IndexMut[(usize, usize)]([self, index] => &mut self.0[index]),
+        From[Complex<f32>]([value] => Self(Pauli2::identity() * value)),
+        From[f32]([value] => Self::from(Complex::from(value))),
+        AddAssign(), SubAssign(), MulAssign()
     }
 }
-impl Sub for MatrixG3 {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        self.binary_map(rhs, Sub::sub)
-    }
-}
-
-impl Mul for MatrixG3 {
-    type Output = Self;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        self.binary_map(rhs, Mul::mul)
-    }
-}
-impl<G: Into<Complex<f32>>> Mul<G> for MatrixG3 {
-    type Output = Self;
-
-    fn mul(self, rhs: G) -> Self::Output {
-        Self(self.0 * rhs.into())
-    }
-}
-impl<G: Into<Complex<f32>>> Div<G> for MatrixG3 {
-    type Output = Self;
-
-    fn div(self, rhs: G) -> Self::Output {
-        Self(self.0 / rhs.into())
-    }
-}
-impl Neg for MatrixG3 {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        self.unary_map(Neg::neg)
-    }
-}
-
-impl AddAssign for MatrixG3 {
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
-    }
-}
-
-impl SubAssign for MatrixG3 {
-    fn sub_assign(&mut self, rhs: Self) {
-        self.0 -= rhs.0;
-    }
-}
-
-impl MulAssign for MatrixG3 {
-    fn mul_assign(&mut self, rhs: Self) {
-        self.0 *= rhs.0;
-    }
-}
-
-impl<G: Into<Complex<f32>>> MulAssign<G> for MatrixG3 {
-    fn mul_assign(&mut self, rhs: G) {
-        self.0 *= rhs.into();
-    }
-}
-
-impl<G: Into<Complex<f32>>> DivAssign<G> for MatrixG3 {
-    fn div_assign(&mut self, rhs: G) {
-        self.0 /= rhs.into();
+impl_num_traits! {
+    impl[G: Into<Complex<f32>>] ... for MatrixG3 {
+        Mul[G](defo; [self, rhs] => Self(self.0 * rhs.into())),
+        Div[G](defo; [self, rhs] => Self(self.0 / rhs.into())),
+        MulAssign[G]([self, rhs] => { self.0 *= rhs.into(); }),
+        DivAssign[G]([self, rhs] => { self.0 /= rhs.into(); }),
     }
 }

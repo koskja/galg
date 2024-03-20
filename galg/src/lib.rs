@@ -13,6 +13,7 @@
 #![feature(const_for)]
 #![feature(effects)]
 
+pub mod macros;
 pub mod matrix;
 pub mod plusalg;
 pub mod subset;
