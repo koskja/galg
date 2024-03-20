@@ -58,7 +58,7 @@ pub mod default {
     }
     pub fn contains<const DIM: usize, I: IndexSet<DIM>>(a: &I, index: usize) -> bool {
         // I::new(i).conjunction(a).size() == 1
-        a.iter_elems().find(|&x| x == index).is_some()
+        a.iter_elems().any(|x| x == index)
     }
     pub fn relative_complement<const DIM: usize, I: IndexSet<DIM>>(a: I, remove: I) -> I {
         a.conjunction(remove.complement())
@@ -93,12 +93,10 @@ pub trait IndexSet<const DIM: usize>: Sized + PartialEq + Clone {
     fn iter_grade(k: usize) -> impl Iterator<Item = Self>;
 }
 pub trait GradedSpace<const DIM: usize, F>:
-    Default + Clone + Add<Self, Output = Self> + Mul<F, Output = Self>
+    Clone + Add<Self, Output = Self> + Mul<F, Output = Self>
 {
     type Index: IndexSet<DIM>;
-    fn zero() -> Self {
-        Self::default()
-    }
+    fn zero() -> Self;
     fn assign(&mut self, elem: F, i: impl IndexSet<DIM>);
     fn project(&self, i: impl IndexSet<DIM>) -> F;
     fn iter_basis() -> impl Iterator<Item = Self::Index> {
@@ -185,7 +183,7 @@ impl<const DIM: usize, const K: usize> IndexSet<DIM> for [usize; K] {
     }
 
     fn iter_elems(&self) -> impl '_ + Iterator<Item = usize> {
-        self.into_iter().copied()
+        self.iter().copied()
     }
 }
 impl<'a, const DIM: usize> IndexSet<DIM> for &'a [usize] {
@@ -265,7 +263,7 @@ pub const fn get_tuple_k(tuple: &[usize]) -> usize {
 pub const fn kth_tuple<const K: usize>(n: usize) -> [usize; K] {
     let mut result = [0; K];
     write_kth_tuple(n, &mut result);
-    return result;
+    result
 }
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct Subbin<const DIM: usize>(pub usize, PhantomData<[(); DIM]>);

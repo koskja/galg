@@ -22,8 +22,8 @@ fn test<
     A::Index: std::fmt::Debug,
 {
     let slots: Vec<_> = A::iter_basis().collect();
-    let a = A::mass_new(val.into_iter().zip(slots.clone().into_iter()));
-    let b = B::mass_new(val.into_iter().zip(slots.clone().into_iter()));
+    let a = A::mass_new(val.into_iter().zip(slots.clone()));
+    let b = B::mass_new(val.into_iter().zip(slots.clone()));
     for (val, i) in val.into_iter().zip(slots.iter()) {
         let a_reprojected = a.project(i.clone());
         let b_reprojected = a.project(i.clone());

@@ -3,6 +3,7 @@ use std::ops::{
 };
 
 use nalgebra::{Complex, Matrix2, Vector3};
+use num_traits::Zero;
 
 use crate::{
     impl_num_traits,
@@ -72,16 +73,7 @@ impl MatrixG3 {
 }
 impl core::fmt::Debug for MatrixG3 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[")?;
-        for i in (0..=3).flat_map(|k| Subbin::iter_grade(k)) {
-            //println!("{i:?}");
-            write!(
-                f,
-                "| {} |",
-                <Self as GradedSpace::<3, f32>>::project(&self, i)
-            )?;
-        }
-        write!(f, "]")
+        write!(f, "{}", self.print())
     }
 }
 impl crate::subset::GradedSpace<3, f32> for MatrixG3 {
@@ -127,6 +119,10 @@ impl crate::subset::GradedSpace<3, f32> for MatrixG3 {
             .map(|(val, elem)| Self::new(val, elem))
             .fold(Self::default(), Add::add)
     }
+
+    fn zero() -> Self {
+        Self(Zero::zero())
+    }
 }
 impl CliffAlgebra<3, f32> for MatrixG3 {
     /*fn reversion(mut self) -> Self {
@@ -147,16 +143,15 @@ impl CliffAlgebra<3, f32> for MatrixG3 {
     fn inverse(self) -> Option<Self> {
         self.0.try_inverse().map(Self)
     }
+    fn plane_rotor(self, half_angle: f32) -> Self {
+        let (s, c) = half_angle.sin_cos();
+        let bivec = self.multi_select(Subbin::iter_grade(2));
+        Self::nscalar(s) + bivec * c
+    }
 }
 impl core::fmt::Display for MatrixG3 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{{:?} / ", self.pt_scalar())?;
-        let v: [_; 3] = self.pt_vec().into();
-        let b: [_; 3] = self.pt_bivec().into();
-        write!(f, "{:?} / ", v)?;
-        write!(f, "{:?} / ", b)?;
-        write!(f, "{:?}}}", self.pt_pscalar())?;
-        Ok(())
+        write!(f, "{}", self.print())
     }
 }
 fn s1(a: f32, b: f32) -> f32 {
