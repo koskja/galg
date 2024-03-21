@@ -157,7 +157,9 @@ impl Expr {
                 //println!("{sympy_expr} {args:?} {}", sympy_expr.get_type())
             }
             let e1 = Self::from_sympy_expr(py, args[0].as_ref(py))?;
-            args.into_iter().skip(1).try_fold(e1, |acc, en| Ok(rnexpr(f(acc, Self::from_sympy_expr(py, en.as_ref(py))?))))
+            args.into_iter().skip(1).try_fold(e1, |acc, en| {
+                Ok(rnexpr(f(acc, Self::from_sympy_expr(py, en.as_ref(py))?)))
+            })
         };
         let unary_arg = |f: &dyn Fn(Self) -> ExprVal| -> PyResult<Self> {
             let args: Vec<PyObject> = sympy_expr.getattr("args")?.extract()?;
@@ -225,7 +227,9 @@ impl Expr {
                     RealFunction::Exp => "exp",
                     RealFunction::Ln => "log",
                     RealFunction::Abs => "abs",
-                    RealFunction::Powi(exp) => return Ok(format!("({}) ** ({})", x.to_string(py)?, exp)),
+                    RealFunction::Powi(exp) => {
+                        return Ok(format!("({}) ** ({})", x.to_string(py)?, exp))
+                    }
                     RealFunction::Expression(_) => unimplemented!(),
                     RealFunction::Sign => "sign",
                 };
@@ -487,7 +491,7 @@ impl RelativeEq for Expr {
         Signed::abs_sub(self, other) <= largest * max_relative
     }
 }
-impl_num_traits!{
+impl_num_traits! {
     impl ... for Expr {
         SimdValue(), SubsetOf[Expr](),
         AddAssign(), SubAssign(), MulAssign(), DivAssign(), RemAssign(),

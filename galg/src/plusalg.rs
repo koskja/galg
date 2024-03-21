@@ -17,8 +17,8 @@ pub struct PlusAlgebra<
     F: Copy + RealField,
     A: CliffAlgebra<DIM, F>,
 >(A, A, PhantomData<F>);
-impl<const DIM: usize, const EN2: i8, F: Display + Copy + RealField, A: CliffAlgebra<DIM, F>> core::fmt::Debug
-    for PlusAlgebra<DIM, EN2, F, A>
+impl<const DIM: usize, const EN2: i8, F: Display + Copy + RealField, A: CliffAlgebra<DIM, F>>
+    core::fmt::Debug for PlusAlgebra<DIM, EN2, F, A>
 where
     [(); DIM + 1]:,
 {

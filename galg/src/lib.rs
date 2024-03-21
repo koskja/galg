@@ -18,18 +18,18 @@
 #![feature(slice_ptr_get)]
 #![feature(vec_push_within_capacity)]
 
+pub mod infin;
 pub mod macros;
 pub mod matrix;
 pub mod plusalg;
 pub mod subset;
 pub mod test;
-pub mod infin;
 pub mod variable;
 
 use std::{
     f32::consts::PI,
     fmt::Debug,
-    ops::{Add, AddAssign, Div, Mul, Neg, Sub, DivAssign, MulAssign, SubAssign},
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
 use nalgebra::{RealField, SVector};
@@ -154,7 +154,7 @@ where
         Self([F::zero(); 1 << DIM])
     }
 
-    fn assign(&mut self, elem: F, i: impl IndexSet<DIM>) { 
+    fn assign(&mut self, elem: F, i: impl IndexSet<DIM>) {
         a!((DIM) => (assign self, elem, i) => [(0, GG0),(1, GG1),(2, GG2),(3, GG3),(4, GG4),(5, GG5),(6, GG6),(7, GG7),(8, GG8)]);
     }
 

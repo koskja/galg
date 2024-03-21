@@ -1,5 +1,7 @@
-use core::ops;
-use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign};
+use std::ops::{
+    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Rem, RemAssign, Sub,
+    SubAssign,
+};
 
 use approx::RelativeEq;
 use nalgebra::{ComplexField, Field, RealField, SimdValue};
@@ -16,78 +18,80 @@ impl<F: RealField + Copy> Cinf<F> for RealFunction {
                 1 => val.cos(),
                 2 => -val.sin(),
                 3 => -val.cos(),
-                _ => unreachable!()
+                _ => unreachable!(),
             },
             RealFunction::Cos => match n % 4 {
                 0 => val.cos(),
                 1 => -val.sin(),
                 2 => -val.cos(),
                 3 => val.sin(),
-                _ => unreachable!()
+                _ => unreachable!(),
             },
             RealFunction::Tan => match n {
                 0 => val.tan(),
                 1 => val.cos().powi(-2),
                 2 => F::from_subset(&2.) * val.tan() * val.cos().powi(-2),
-                _ => unimplemented!()    
+                _ => unimplemented!(),
             },
             RealFunction::Sinh => match n % 2 {
                 0 => val.sinh(),
                 1 => val.cosh(),
-                _ => unimplemented!()
+                _ => unimplemented!(),
             },
             RealFunction::Cosh => match n % 2 {
                 0 => val.cosh(),
                 1 => val.sinh(),
-                _ => unimplemented!()
+                _ => unimplemented!(),
             },
             RealFunction::Tanh => match n {
                 0 => val.tanh(),
                 1 => val.cos().powi(-2),
                 2 => -F::from_subset(&2.) * val.tanh() * val.cosh().powi(-2),
-                _ => unimplemented!()    
+                _ => unimplemented!(),
             },
             RealFunction::Csc => match n {
                 0 => val.sin().powi(-1),
                 1 => val.cos().powi(-2),
                 2 => -F::from_subset(&2.) * val.tanh() * val.cosh().powi(-2),
-                _ => unimplemented!()    
+                _ => unimplemented!(),
             },
             RealFunction::Sec => match n {
                 0 => val.tanh(),
                 1 => val.cos() * val.sin().powi(-2),
                 2 => -F::from_subset(&2.) * val.tanh() * val.cosh().powi(-2),
-                _ => unimplemented!()    
+                _ => unimplemented!(),
             },
             RealFunction::Cot => match n {
                 0 => val.tanh(),
                 1 => val.cos().powi(-2),
                 2 => val.sin().powi(-1) * ((val.cos() / val.sin()).powi(2)),
-                _ => unimplemented!()    
+                _ => unimplemented!(),
             },
             RealFunction::Exp => val.exp(),
             RealFunction::Ln => match n {
                 0 => val.ln(),
                 1 => F::one() / val,
-                _ => unimplemented!()
+                _ => unimplemented!(),
             },
             RealFunction::Abs => match n {
                 0 => val.abs(),
                 1 => val.signum(),
-                _ => F::zero()
+                _ => F::zero(),
             },
             RealFunction::Sign => match n {
                 0 => val.signum(),
-                _ => F::zero()
+                _ => F::zero(),
             },
             &RealFunction::Powi(i) => {
-                let mul = ((i - (n as i32) + 1)..=i).map(|x| F::from_subset(&(x as f64))).fold(F::one(), Mul::mul);
+                let mul = ((i - (n as i32) + 1)..=i)
+                    .map(|x| F::from_subset(&(x as f64)))
+                    .fold(F::one(), Mul::mul);
                 if i >= 0 && n as i32 > i {
                     F::zero()
                 } else {
                     mul * val.powi(i - n as i32)
                 }
-            },
+            }
             RealFunction::Expression(_) => todo!(),
         }
     }
@@ -106,10 +110,7 @@ pub struct FakeCinf<F> {
 }
 impl<F> FakeCinf<F> {
     pub fn new(f: BoxDynFunction<F>, f_prime: BoxDynFunction<F>) -> Self {
-        FakeCinf {
-            f,
-            f_prime,
-        }
+        FakeCinf { f, f_prime }
     }
 }
 impl<F> Cinf<F> for FakeCinf<F> {
@@ -117,7 +118,7 @@ impl<F> Cinf<F> for FakeCinf<F> {
         (match n {
             0 => &self.f,
             1 => &self.f_prime,
-            _ => panic!("this function does not support derivatives of order {n}")
+            _ => panic!("this function does not support derivatives of order {n}"),
         })(val)
     }
 }
@@ -271,8 +272,7 @@ impl<const N: usize, F: RealField + Copy> Num for Infin<N, F> {
     type FromStrRadixErr = <F as Num>::FromStrRadixErr;
 
     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
-        F::from_str_radix(str, radix)
-            .map(Self::nconst)
+        F::from_str_radix(str, radix).map(Self::nconst)
     }
 }
 impl<const N: usize, F: RealField + Copy> RelativeEq for Infin<N, F> {
@@ -289,7 +289,7 @@ impl<const N: usize, F: RealField + Copy> RelativeEq for Infin<N, F> {
         self[0].relative_eq(&other[0], epsilon[0], max_relative[0])
     }
 }
-impl<const N: usize, F: RealField + Copy> Field for Infin<N, F>{}
+impl<const N: usize, F: RealField + Copy> Field for Infin<N, F> {}
 impl<const N: usize, F: RealField + Copy> core::fmt::Display for Infin<N, F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self[0])
