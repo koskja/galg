@@ -61,6 +61,9 @@ macro_rules! impl_num_traits {
     (@4 Div [$t:tt] : [$l:tt, $r:tt] => $($impl:tt)*) => {
         fn div($l, $r: $t) -> Self { $($impl)* }
     };
+    (@4 Rem : [$l:tt, $r:tt] => $($impl:tt)*) => {
+        fn rem($l, $r: Self) -> Self { $($impl)* }
+    };
     (@4 Div: [$l:tt, $r:tt] => $($impl:tt)*) => {
         fn div($l, $r: Self) -> Self { $($impl)* }
     };
@@ -126,6 +129,23 @@ macro_rules! impl_num_traits {
     };
     (@4 Default: [] => $($impl:tt)*) => {
         fn default() -> Self { $($impl)* }
+    };
+    (@4 Zero: zero[] => $zero:tt, is_zero[$l:tt] => $($impl:tt)*) => {
+        fn zero() -> Self { $zero:tt }
+        fn is_zero(&$l) -> bool { $($impl)* }
+    };
+    (@4 SubsetOf [$($t:tt)*]:) => {
+        fn to_superset(&self) -> Self {
+            *self
+        }
+
+        fn from_superset_unchecked(element: &Self) -> Self {
+            *element
+        }
+
+        fn is_in_subset(_: &Self) -> bool {
+            true
+        }
     };
     (@4 SimdValue:) => {
         type Element = Self;

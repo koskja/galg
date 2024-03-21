@@ -9,11 +9,12 @@
 mod render;
 
 use galg::{
-    plusalg::PlusAlgebra, subset::{GradedSpace, Subbin}, variable::Expr, AnyCliff, CliffAlgebra, G2Var, G3Var, G4Var, M4Var, G2, G3, M1, M4
+    infin::Infin, plusalg::PlusAlgebra, subset::{GradedSpace, Subbin}, variable::Expr, AnyCliff, CliffAlgebra, G2Var, G3Var, G4Var, M4Var, G2, G3, M1, M4
 };
 use nalgebra::{Matrix2, RealField, SMatrix, SVector, Vector1, Vector2, Vector3, Vector4};
 use num_traits::{real::Real, One};
 use rand::Rng;
+use nalgebra::ComplexField;
 use std::{f32::consts::PI, marker::PhantomData};
 use svg::{node::element::Circle, Document};
 
@@ -249,6 +250,10 @@ impl<const N: usize, F: RealField + Copy> VecMap<F, N, { N - 1 }> for CelPer<N, 
 }
 
 fn main() {
+    let x = Infin::new([Expr::nvar("x"), Expr::nconst(1.)]);
+    let b = x.powi(2) * (x.powi(3) * (Infin::one() + Infin::one())  + Infin::one()).powi(10);
+    println!("{:?}", b);
+    return;
     let proj = CelPer::new(Vector3::new(Expr::nconst(1.), Expr::zero(), Expr::zero()), Expr::nconst(0.3));
     let l_phi = Expr::nvar("lp");
     let p_phi = Expr::nvar("pp");

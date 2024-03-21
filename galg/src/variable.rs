@@ -128,6 +128,7 @@ pub enum RealFunction {
     Ln,
     Abs,
     Sign,
+    Powi(i32),
     Expression(Expr),
 }
 #[derive(Debug, Clone, Copy)]
@@ -183,6 +184,7 @@ impl Expr {
             "csc" => unary_arg(&|a| ExprVal::Unary(RealFunction::Csc, a))?,
             "sec" => unary_arg(&|a| ExprVal::Unary(RealFunction::Sec, a))?,
             "cot" => unary_arg(&|a| ExprVal::Unary(RealFunction::Cot, a))?,
+            "log" => unary_arg(&|a| ExprVal::Unary(RealFunction::Ln, a))?,
             "Symbol" => {
                 let name: String = sympy_expr.getattr("name")?.extract()?;
                 Self::nvar(&name)
@@ -223,6 +225,7 @@ impl Expr {
                     RealFunction::Exp => "exp",
                     RealFunction::Ln => "log",
                     RealFunction::Abs => "abs",
+                    RealFunction::Powi(exp) => return Ok(format!("({}) ** ({})", x.to_string(py)?, exp)),
                     RealFunction::Expression(_) => unimplemented!(),
                     RealFunction::Sign => "sign",
                 };
@@ -400,19 +403,6 @@ impl approx::UlpsEq for Expr {
         todo!()
     }
 }
-impl SubsetOf<Expr> for Expr {
-    fn to_superset(&self) -> Self {
-        *self
-    }
-
-    fn from_superset_unchecked(element: &Self) -> Self {
-        *element
-    }
-
-    fn is_in_subset(_: &Self) -> bool {
-        true
-    }
-}
 impl FromPrimitive for Expr {
     fn from_i64(n: i64) -> Option<Self> {
         Some(Self::nconst(n as f32))
@@ -499,7 +489,7 @@ impl RelativeEq for Expr {
 }
 impl_num_traits!{
     impl ... for Expr {
-        SimdValue(),
+        SimdValue(), SubsetOf[Expr](),
         AddAssign(), SubAssign(), MulAssign(), DivAssign(), RemAssign(),
     }
 }
